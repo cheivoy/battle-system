@@ -1,0 +1,214 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰報名管理系統 - 首頁</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+    <nav id="sidebar" class="sidebar"></nav>
+    <div id="mainContent" class="main-content">
+        <div class="container">
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
+            <div class="user-info" id="userInfo"></div>
+            <div class="tab-content">
+                <h2>報名狀態</h2>
+                <div id="battleStatus"></div>
+                <div id="battleFormation" class="battle-formation"></div>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
+    <script src="/scripts.js"></script>
+    <script>
+        async function loadHomePage() {
+            try {
+                const battleRes = await fetch('/api/battle/current', { credentials: 'include' });
+                const battleData = await battleRes.json();
+                const regRes = await fetch('/api/registration/status', { credentials: 'include' });
+                const regData = await regRes.json();
+                
+                const statusDiv = document.getElementById('battleStatus');
+                if (!battleData.success || !battleData.battle) {
+                    statusDiv.innerHTML = '<p>目前無開放的幫戰</p>';
+                    return;
+                }
+                
+                const { battle } = battleData;
+                const isRegistered = regData.success && regData.registered;
+                const isDeadlinePassed = new Date(battle.deadline) < new Date();
+                
+                statusDiv.innerHTML = `
+                    <div class="registration-card">
+                        <div class="registration-status ${isRegistered ? 'status-registered' : 'status-not-registered'}">
+                            ${isRegistered ? `已報名，分配小隊：${regData.team || '待分配'}` : '未報名'}
+                        </div>
+                        <p>幫戰時間：${new Date(battle.date).toLocaleString('zh-TW')}</p>
+                        <p>報名截止：${new Date(battle.deadline).toLocaleString('zh-TW')}</p>
+                        ${!isDeadlinePassed ? `
+                            ${isRegistered ? `
+                                <button class="btn btn-danger" onclick="cancelRegistration()" data-tooltip="取消本次幫戰報名">取消報名</button>
+                            ` : `
+                                <button class="btn btn-success" onclick="registerForBattle()" data-tooltip="報名參加本次幫戰">報名參戰</button>
+                            `}
+                            <button class="btn" onclick="showLeaveForm()" data-tooltip="提交請假申請">請假</button>
+                        ` : '<p>報名已截止</p>'}
+                    </div>
+                `;
+                
+                if (battle.formationPublished) {
+                    const formationDiv = document.getElementById('battleFormation');
+                    formationDiv.innerHTML = '<h3>出戰表</h3>';
+                    const table = document.createElement('table');
+                    table.className = 'team-table readonly';
+                    table.innerHTML = `
+                        <tr>
+                            <th>團</th><th>小隊</th><th>職業</th><th>玩家</th>
+                        </tr>
+                    `;
+                    battle.formation.forEach(group => {
+                        group.teams.forEach(team => {
+                            team.members.forEach(member => {
+                                table.innerHTML += `
+                                    <tr>
+                                        <td>${group.name}</td>
+                                        <td>${team.name}</td>
+                                        <td>${member.job}</td>
+                                        <td>${member.player || '-'}</td>
+                                    </tr>
+                                `;
+                            });
+                        });
+                    });
+                    formationDiv.appendChild(table);
+                }
+            } catch (err) {
+                showNotification('無法載入數據', 'error');
+            }
+        }
+        
+        async function registerForBattle() {
+            try {
+                const res = await fetch('/api/registration/register', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('報名成功！', 'success');
+                    loadHomePage();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (err) {
+                showNotification('報名失敗', 'error');
+            }
+        }
+        
+        async function cancelRegistration() {
+            try {
+                const res = await fetch('/api/registration/cancel', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('已取消報名', 'success');
+                    loadHomePage();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (err) {
+                showNotification('取消失敗', 'error');
+            }
+        }
+        
+        function showLeaveForm() {
+            showModal(`
+                <h3>請假申請</h3>
+                <div class="form-group">
+                    <label>請假日期</label>
+                    <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
+                </div>
+                <button class="btn btn-success" onclick="submitLeave()">提交</button>
+                <button class="btn close-modal" onclick="closeModal()">取消</button>
+            `);
+        }
+        
+        async function submitLeave() {
+            const leaveDate = document.getElementById('leaveDate').value;
+            if (!leaveDate) {
+                showNotification('請選擇日期', 'error');
+                return;
+            }
+            try {
+                const res = await fetch('/api/leave/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ date: leaveDate })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('請假申請已提交', 'success');
+                    closeModal();
+                    loadHomePage();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (err) {
+                showNotification('提交失敗', 'error');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadHomePage);
+    </script>
+</body>
+</html>

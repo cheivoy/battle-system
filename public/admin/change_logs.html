@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰報名管理系統 - 異動記錄</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+    <nav id="sidebar" class="sidebar"></nav>
+    <div id="mainContent" class="main-content">
+        <div class="container">
+            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="user-info" id="userInfo"></div>
+            <div class="tab-content">
+                <h2>異動記錄</h2>
+                <div class="form-group">
+                    <label>日期</label><input type="date" id="filterDate" onchange="loadLogs()">
+                    <label>用戶 ID</label><input type="text" id="filterId" oninput="loadLogs()">
+                    <label>類型</label>
+                    <select id="filterType" onchange="loadLogs()">
+                        <option value="">全部</option>
+                        <option value="register">註冊</option>
+                        <option value="cancel">取消報名</option>
+                        <option value="leave">請假</option>
+                        <option value="job_change">職業更換</option>
+                        <option value="id_change">ID 更換</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <table class="team-table" id="logTable">
+                    <tr><th>時間</th><th>用戶 ID</th><th>類型</th><th>訊息</th></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <script src="/scripts.js"></script>
+    <script>
+        async function loadLogs() {
+            const date = document.getElementById('filterDate').value;
+            const userId = document.getElementById('filterId').value.trim();
+            const type = document.getElementById('filterType').value;
+            try {
+                const query = new URLSearchParams({ date, userId, type }).toString();
+                const res = await fetch(`/api/change-logs?${query}`, { credentials: 'include' });
+                const data = await res.json();
+                if (!data.success) return alert(data.message);
+                const table = document.getElementById('logTable');
+                table.innerHTML = '<tr><th>時間</th><th>用戶 ID</th><th>類型</th><th>訊息</th></tr>';
+                data.logs.forEach(log => {
+                    table.innerHTML += `
+                        <tr>
+                            <td>${new Date(log.timestamp).toLocaleString('zh-TW')}</td>
+                            <td>${log.userId}</td>
+                            <td>${log.type}</td>
+                            <td>${log.message}</td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                alert('無法載入異動記錄');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadLogs);
+    </script>
+</body>
+</html>

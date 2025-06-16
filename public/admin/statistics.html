@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰報名管理系統 - 統計報表</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+    <nav id="sidebar" class="sidebar"></nav>
+    <div id="mainContent" class="main-content">
+        <div class="container">
+            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="user-info" id="userInfo"></div>
+            <div class="tab-content">
+                <h2>統計報表</h2>
+                <div class="stats-grid" id="statsGrid"></div>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <script src="/scripts.js"></script>
+    <script>
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats', { credentials: 'include' });
+                const data = await res.json();
+                if (!data.success) return alert(data.message);
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stats-card"><div class="stats-number">${data.stats.totalMembers}</div><p>總成員數</p></div>
+                    <div class="stats-card"><div class="stats-number">${data.stats.registered}</div><p>報名人數</p></div>
+                    <div class="stats-card"><div class="stats-number">${data.stats.onLeave}</div><p>請假人數</p></div>
+                `;
+            } catch (err) {
+                alert('無法載入統計數據');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadStats);
+    </script>
+</body>
+</html>

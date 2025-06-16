@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰報名管理系統 - 成員管理</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+    <nav id="sidebar" class="sidebar"></nav>
+    <div id="mainContent" class="main-content">
+        <div class="container">
+            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="user-info" id="userInfo"></div>
+            <div class="tab-content">
+                <h2>成員管理</h2>
+                <div id="memberList"></div>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <script src="/scripts.js"></script>
+    <script>
+        async function loadMembers() {
+            try {
+                const res = await fetch('/api/members/list', { credentials: 'include' });
+                const data = await res.json();
+                if (!data.success) return alert(data.message);
+                const div = document.getElementById('memberList');
+                div.innerHTML = `
+                    <table class="team-table">
+                        <tr><th>遊戲 ID</th><th>職業</th><th>狀態</th><th>操作</th></tr>
+                        ${data.members.map(m => `
+                            <tr>
+                                <td>${m.gameId}</td>
+                                <td>${m.job}</td>
+                                <td>${m.onLeave ? '請假' : '正常'}</td>
+                                <td>
+                                    <button class="btn btn-danger" onclick="toggleLeave('${m.gameId}', ${!m.onLeave})">
+                                        ${m.onLeave ? '取消請假' : '設為請假'}
+                                    </button>
+                                    <button class="btn btn-danger" onclick="deleteMember('${m.gameId}')">刪除</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            } catch (err) {
+                alert('無法載入成員列表');
+            }
+        }
+        async function toggleLeave(gameId, onLeave) {
+            try {
+                const res = await fetch('/api/members/toggle-leave', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ gameId, onLeave })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('狀態更新成功');
+                    loadMembers();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert('更新失敗');
+            }
+        }
+        async function deleteMember(gameId) {
+            if (!confirm(`確定刪除 ${gameId}？`)) return;
+            try {
+                const res = await fetch('/api/members/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ gameId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('成員已刪除');
+                    loadMembers();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert('刪除失敗');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadMembers);
+    </script>
+</body>
+</html>
