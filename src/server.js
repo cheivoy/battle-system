@@ -65,6 +65,10 @@ passport.deserializeUser(async (id, done) => {
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
 // 頁面路由
 const pages = [
     'index.html', 'home.html',
