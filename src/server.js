@@ -13,7 +13,7 @@ const app = express();
 
 // 中間件
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -78,6 +78,8 @@ pages.forEach(page => {
         res.sendFile(path.join(__dirname, '../public', page));
     });
 });
+
+app.use(express.static(path.join(__dirname, '../public')));
 
 // 啟動伺服器
 const PORT = process.env.PORT || 3000;
