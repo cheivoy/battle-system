@@ -1,37 +1,29 @@
+const express = require('express');
+const router = express.Router();
 const passport = require('passport');
-const DiscordStrategy = require('passport-discord').Strategy;
 const User = require('../models/User');
-require('dotenv').config();
 
-passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
+router.get('/discord', passport.authenticate('discord'));
 
-passport.deserializeUser(async (id, done) => {
-    try {
-        const user = await User.findById(id);
-        done(null, user);
-    } catch (err) {
-        done(err, null);
-    }
-});
+router.get('/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), async (req, res) => {
+    const allowedIds = process.env.ALLOWED_MEMBER_IDS ? process.env.ALLOWED_MEMBER_IDS.split(',') : [];
+    const masterAdminId = process.env.MASTER_ADMIN_ID;
 
-passport.use(new DiscordStrategy({
-    clientID: process.env.DISCORD_CLIENT_ID,
-    clientSecret: process.env.DISCORD_CLIENT_SECRET,
-    callbackURL: process.env.DISCORD_CALLBACK_URL,
-    scope: ['identify']
-}, async (accessToken, refreshToken, profile, done) => {
-    try {
-        let user = await User.findOne({ discordId: profile.id });
-        if (!user) {
-            user = new User({ discordId: profile.id });
-            await user.save();
+    if (!req.user.gameId) {
+        if (allowedIds.length > 0 && !allowedIds.includes(req.user.discordId) && req.user.discordId !== masterAdminId) {
+            await User.deleteOne({ discordId: req.user.discordId });
+            req.logout(() => {});
+            return res.redirect('/?error=無效成員ID');
         }
-        done(null, user);
-    } catch (err) {
-        done(err, null);
+        return res.redirect('/');
     }
-}));
+    res.redirect('/home.html');
+});
 
-module.exports = passport;
+router.get('/logout', (req, res) => {
+    req.logout(() => {
+        res.redirect('/');
+    });
+});
+
+module.exports = router;

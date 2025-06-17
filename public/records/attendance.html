@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幫戰報名管理系統 - 個人出勤紀錄</title>
+    <title>幫戰報名管理系統 - 出勤紀錄</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
@@ -19,14 +19,36 @@
             </div>
             <div class="tab-content">
                 <h2>個人出勤紀錄</h2>
-                <div id="statsGrid" class="stats-grid"></div>
-                <h3>近期記錄</h3>
-                <table id="attendanceTable" class="team-table">
-                    <tr><th>日期</th><th>團</th><th>小隊</th><th>狀態</th></tr>
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <h3>出勤率</h3>
+                        <p class="stats-number" id="attendanceRate">0%</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>總參戰次數</h3>
+                        <p class="stats-number" id="totalBattles">0</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>缺席次數</h3>
+                        <p class="stats-number" id="absences">0</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>報名次數</h3>
+                        <p class="stats-number" id="registered">0</p>
+                    </div>
+                </div>
+                <table class="team-table">
+                    <tr><th>幫戰日期</th><th>團</th><th>小隊</th><th>出勤狀態</th><th>報名狀態</th></tr>
+                    <tbody id="attendanceRecords"></tbody>
                 </table>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function loadAttendance() {
@@ -34,37 +56,24 @@
                 const res = await fetch('/api/attendance/user', { credentials: 'include' });
                 const data = await res.json();
                 if (data.success) {
-                    const { stats, records } = data;
-                    document.getElementById('statsGrid').innerHTML = `
-                        <div class="stats-card">
-                            <div class="stats-number">${stats.attendanceRate}%</div>
-                            <p>出勤率</p>
-                        </div>
-                        <div class="stats-card">
-                            <div class="stats-number">${stats.totalBattles}</div>
-                            <p>總參戰次數</p>
-                        </div>
-                        <div class="stats-card">
-                            <div class="stats-number">${stats.absences}</div>
-                            <p>缺席次數</p>
-                        </div>
-                    `;
-                    document.getElementById('attendanceTable').innerHTML = `
-                        <tr><th>日期</th><th>團</th><th>小隊</th><th>狀態</th></tr>
-                        ${records.slice(0, 10).map(record => `
-                            <tr>
-                                <td>${new Date(record.battleDate).toLocaleDateString('zh-TW')}</td>
-                                <td>${record.group || '-'}</td>
-                                <td>${record.team || '-'}</td>
-                                <td>${record.attended ? '出勤' : '缺席'}</td>
-                            </tr>
-                        `).join('')}
-                    `;
+                    document.getElementById('attendanceRate').textContent = `${data.stats.attendanceRate}%`;
+                    document.getElementById('totalBattles').textContent = data.stats.totalBattles;
+                    document.getElementById('absences').textContent = data.stats.absences;
+                    document.getElementById('registered').textContent = data.stats.registered;
+                    document.getElementById('attendanceRecords').innerHTML = data.records.map(record => `
+                        <tr>
+                            <td>${new Date(record.battleDate).toLocaleString('zh-TW')}</td>
+                            <td>${record.group || '-'}</td>
+                            <td>${record.team || '-'}</td>
+                            <td>${record.attended ? '出勤' : '缺席'}</td>
+                            <td>${record.registered ? '已報名' : '未報名'}</td>
+                        </tr>
+                    `).join('');
                 } else {
                     showNotification(data.message, 'error');
                 }
             } catch (err) {
-                showNotification('無法載入出勤記錄', 'error');
+                showNotification('無法載入出勤紀錄', 'error');
             }
         }
 

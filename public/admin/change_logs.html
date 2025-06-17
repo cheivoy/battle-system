@@ -22,31 +22,38 @@
                 <div class="change-log-filter">
                     <div class="form-group">
                         <label>日期：</label>
-                        <input type="date" id="filterDate" onchange="loadChangeLogs()">
+                        <input type="date" id="filterDate">
                     </div>
                     <div class="form-group">
                         <label>用戶 ID：</label>
-                        <input type="text" id="filterUserId" oninput="loadChangeLogs()">
+                        <input type="text" id="filterUserId" placeholder="輸入遊戲 ID">
                     </div>
                     <div class="form-group">
                         <label>類型：</label>
-                        <select id="filterType" onchange="loadChangeLogs()">
+                        <select id="filterType">
                             <option value="">全部</option>
-                            <option value="register">報名</option>
+                            <option value="register">註冊/報名</option>
                             <option value="cancel">取消報名</option>
-                            <option value="leave">請假</option>
                             <option value="job_change">更換職業</option>
                             <option value="id_change">更改 ID</option>
+                            <option value="leave">請假</option>
                             <option value="other">其他</option>
                         </select>
                     </div>
+                    <button class="btn" onclick="loadChangeLogs()">查詢</button>
                 </div>
-                <table id="changeLogTable" class="change-log-table">
-                    <tr><th>時間</th><th>用戶 ID</th><th>操作</th><th>類型</th></tr>
+                <table class="change-log-table">
+                    <tr><th>時間</th><th>用戶 ID</th><th>類型</th><th>訊息</th></tr>
+                    <tbody id="changeLogs"></tbody>
                 </table>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function loadChangeLogs() {
@@ -58,17 +65,14 @@
                 const res = await fetch(`/api/change-logs?${query}`, { credentials: 'include' });
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('changeLogTable').innerHTML = `
-                        <tr><th>時間</th><th>用戶 ID</th><th>操作</th><th>類型</th></tr>
-                        ${data.logs.map(log => `
-                            <tr>
-                                <td>${new Date(log.timestamp).toLocaleString('zh-TW')}</td>
-                                <td>${log.userId}</td>
-                                <td>${log.message}</td>
-                                <td>${log.type}</td>
-                            </tr>
-                        `).join('')}
-                    `;
+                    document.getElementById('changeLogs').innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td>${new Date(log.timestamp).toLocaleString('zh-TW')}</td>
+                            <td>${log.userId}</td>
+                            <td>${log.type}</td>
+                            <td>${log.message}</td>
+                        </tr>
+                    `).join('');
                 } else {
                     showNotification(data.message, 'error');
                 }

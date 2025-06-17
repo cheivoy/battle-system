@@ -7,6 +7,7 @@ const attendanceRecordSchema = new mongoose.Schema({
     group: { type: String },
     team: { type: String },
     attended: { type: Boolean, default: false },
+    registered: { type: Boolean, default: false },
     timestamp: { type: Date, default: Date.now }
 });
 

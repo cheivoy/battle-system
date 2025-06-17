@@ -21,16 +21,21 @@
                 <h2>代報名</h2>
                 <div class="form-group">
                     <label>目標遊戲 ID：</label>
-                    <input type="text" id="targetGameId" placeholder="請輸入目標用戶的遊戲 ID">
+                    <input type="text" id="targetGameId" placeholder="請輸入目標遊戲 ID">
                 </div>
                 <div class="form-group">
-                    <label>原因：</label>
-                    <textarea id="reason" placeholder="請說明代報名原因"></textarea>
+                    <label>代報名原因：</label>
+                    <textarea id="reason" placeholder="請輸入代報名原因"></textarea>
                 </div>
-                <button class="btn" onclick="submitProxyRegistration()" data-tooltip="提交代報名">提交</button>
+                <button class="btn" onclick="submitProxyRegistration()">提交</button>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function submitProxyRegistration() {
@@ -49,10 +54,15 @@
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    window.location.href = '/home.html';
+                }
             } catch (err) {
                 showNotification('代報名失敗', 'error');
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {});
     </script>
 </body>
 </html>

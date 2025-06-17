@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 更改遊戲 ID</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
     <aside id="sidebar" class="sidebar"></aside>
@@ -21,22 +25,23 @@
                 <h2>更改遊戲 ID</h2>
                 <div class="form-group">
                     <label>新遊戲 ID：</label>
-                    <input type="text" id="newGameId" placeholder="請輸入新遊戲 ID">
+                    <input type="text" id="gameId" placeholder="請輸入新遊戲 ID">
                 </div>
-                <button class="btn" onclick="changeGameId()" data-tooltip="提交新遊戲 ID">提交</button>
+                <button class="btn" onclick="changeId()">提交</button>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
-        async function changeGameId() {
-            const newGameId = document.getElementById('newGameId').value.trim();
-            if (!newGameId) {
-                showNotification('請輸入遊戲 ID', 'error');
-                return;
-            }
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(newGameId)) {
-                showNotification('遊戲 ID 必須為 3-20 字元的字母或數字', 'error');
+        async function changeId() {
+            const gameId = document.getElementById('gameId').value.trim();
+            if (!/^[\u4e00-\u9fa5\uff01-\uff5e]{1,7}$/.test(gameId)) {
+                showNotification('遊戲 ID 必須為 7 字以內的中文字或標點符號', 'error');
                 return;
             }
             try {
@@ -44,15 +49,20 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ gameId: newGameId })
+                    body: JSON.stringify({ gameId })
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
-                if (data.success) initSidebar();
+                if (data.success) {
+                    window.location.href = '/home.html';
+                }
             } catch (err) {
                 showNotification('更改遊戲 ID 失敗', 'error');
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => { });
     </script>
 </body>
+
 </html>

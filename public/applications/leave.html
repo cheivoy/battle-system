@@ -23,10 +23,16 @@
                     <label>請假日期：</label>
                     <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
                 </div>
-                <button class="btn" onclick="submitLeave()" data-tooltip="提交請假申請">提交</button>
+                <button class="btn" onclick="submitLeave()">提交</button>
+                <p style="color: red;">如需要取消報名，請聯絡指揮</p>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function submitLeave() {
@@ -44,10 +50,15 @@
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    window.location.href = '/home.html';
+                }
             } catch (err) {
                 showNotification('請假申請失敗', 'error');
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {});
     </script>
 </body>
 </html>

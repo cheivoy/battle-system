@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幫戰報名管理系統 - 註冊</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>幫戰報名管理系統 - 設定</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>🛡️ 幫戰報名管理系統</h1>
         </div>
         <div class="tab-content">
-            <h2>用戶註冊</h2>
+            <h2>用戶設定</h2>
             <div class="form-group">
                 <label>遊戲 ID：</label>
                 <input type="text" id="gameId" placeholder="請輸入遊戲 ID">
@@ -23,28 +27,53 @@
                 <label>職業：</label>
                 <select id="job">
                     <option value="">請選擇職業</option>
-                    <option value="戰士">戰士</option>
-                    <option value="法師">法師</option>
-                    <option value="牧師">牧師</option>
-                    <option value="盜賊">盜賊</option>
-                    <option value="獵人">獵人</option>
-                    <option value="騎士">騎士</option>
-                    <option value="薩滿">薩滿</option>
-                    <option value="術士">術士</option>
-                    <option value="德魯伊">德魯伊</option>
                 </select>
             </div>
-            <button class="btn" onclick="register()">註冊</button>
-            <p>尚未登入？<a href="/auth/discord">使用 Discord 登入</a></p>
+            <button class="btn" onclick="registerUser()">提交</button>
+            <div class="login-section">
+                <p>尚未登入？請使用 Discord 登入</p>
+                <a href="/auth/discord" class="btn"><i class="fab fa-discord"></i> Discord 登入</a>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
         </div>
     </div>
     <script src="/scripts.js"></script>
     <script>
-        async function register() {
+        const jobs = ['鐵衣', '素問', '九靈', '碎夢', '龍吟', '血河', '神相'];
+
+        async function loadSetup() {
+            try {
+                const res = await fetch('/api/user/setup', { credentials: 'include' });
+                const data = await res.json();
+                if (!data.success) {
+                    window.location.href = '/home.html';
+                    return;
+                }
+                const jobSelect = document.getElementById('job');
+                jobs.forEach(job => {
+                    const option = document.createElement('option');
+                    option.value = job;
+                    option.textContent = job;
+                    jobSelect.appendChild(option);
+                });
+            } catch (err) {
+                showNotification('無法載入設定頁面', 'error');
+            }
+        }
+
+        async function registerUser() {
             const gameId = document.getElementById('gameId').value.trim();
             const job = document.getElementById('job').value;
             if (!gameId || !job) {
                 showNotification('請填寫所有欄位', 'error');
+                return;
+            }
+            if (!/^[\u4e00-\u9fa5\uff01-\uff5e]{1,7}$/.test(gameId)) {
+                showNotification('遊戲 ID 必須為 7 字以內的中文字或標點符號', 'error');
                 return;
             }
             try {
@@ -56,23 +85,16 @@
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
-                if (data.success) window.location.href = '/home.html';
+                if (data.success) {
+                    window.location.href = '/home.html';
+                }
             } catch (err) {
                 showNotification('註冊失敗', 'error');
             }
         }
 
-        async function checkSetup() {
-            try {
-                const res = await fetch('/api/user/setup', { credentials: 'include' });
-                const data = await res.json();
-                if (!data.success) window.location.href = '/home.html';
-            } catch (err) {
-                window.location.href = '/auth/discord';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', checkSetup);
+        document.addEventListener('DOMContentLoaded', loadSetup);
     </script>
 </body>
+
 </html>

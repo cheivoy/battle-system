@@ -21,20 +21,34 @@
                 <h2>更換職業</h2>
                 <div class="form-group">
                     <label>新職業：</label>
-                    <select id="newJob">
+                    <select id="job">
                         <option value="">請選擇職業</option>
-                        ${jobs.map(job => `<option value="${job}">${job}</option>`).join('')}
                     </select>
                 </div>
-                <button class="btn" onclick="changeJob()" data-tooltip="提交新職業">提交</button>
+                <button class="btn" onclick="changeJob()">提交</button>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
+        async function loadJobOptions() {
+            const jobSelect = document.getElementById('job');
+            jobs.forEach(job => {
+                const option = document.createElement('option');
+                option.value = job;
+                option.textContent = job;
+                jobSelect.appendChild(option);
+            });
+        }
+
         async function changeJob() {
-            const newJob = document.getElementById('newJob').value;
-            if (!newJob) {
+            const job = document.getElementById('job').value;
+            if (!job) {
                 showNotification('請選擇職業', 'error');
                 return;
             }
@@ -43,15 +57,19 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ job: newJob })
+                    body: JSON.stringify({ job })
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
-                if (data.success) initSidebar();
+                if (data.success) {
+                    window.location.href = '/home.html';
+                }
             } catch (err) {
-                showNotification('更換職業失敗', 'error');
+                showNotification('更改職業失敗', 'error');
             }
         }
+
+        document.addEventListener('DOMContentLoaded', loadJobOptions);
     </script>
 </body>
 </html>

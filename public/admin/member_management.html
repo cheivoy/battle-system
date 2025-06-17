@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 成員管理</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
     <aside id="sidebar" class="sidebar"></aside>
@@ -20,15 +24,20 @@
             <div class="tab-content">
                 <h2>成員管理</h2>
                 <div class="job-button-group">
-                    ${['鐵衣', '素問', '九靈', '碎夢', '龍吟', '血河', '神相'].map(job => `<button class="job-button" onclick="filterByJob('${job}')">${job}</button>`).join('')}
-                    <button class="job-button" onclick="filterByJob('all')">全部</button>
+                    ${['全部', ...jobs].map(job => {
+                    const filterKey = job === '全部' ? 'all' : job;
+                    return `<button class="job-button" onclick="filterByJob('${filterKey}')">${job}</button>`;
+                    }).join('')}
+
                 </div>
                 <div id="memberList" class="job-members"></div>
             </div>
         </div>
     </main>
     <div id="modal" class="modal">
-        <div id="modalContent" class="modal-content"></div>
+        <div id="modalContent" class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
     </div>
     <script src="/scripts.js"></script>
     <script>
@@ -55,23 +64,12 @@
                             `).join('')}
                         </table>
                     `;
-                    document.getElementById('memberList').classList.add('active');
                 } else {
                     showNotification(data.message, 'error');
                 }
             } catch (err) {
                 showNotification('無法載入成員列表', 'error');
             }
-        }
-
-        function filterByJob(job) {
-            document.querySelectorAll('.job-button').forEach(btn => {
-                btn.style.background = '#ffffff';
-                btn.style.color = '#333';
-            });
-            event.target.style.background = '#667eea';
-            event.target.style.color = 'white';
-            loadMembers(job);
         }
 
         async function toggleLeave(gameId) {
@@ -86,7 +84,7 @@
                 showNotification(data.message, data.success ? 'success' : 'error');
                 if (data.success) loadMembers();
             } catch (err) {
-                showNotification('操作失敗', 'error');
+                showNotification('更新請假狀態失敗', 'error');
             }
         }
 
@@ -102,12 +100,12 @@
                 showNotification(data.message, data.success ? 'success' : 'error');
                 if (data.success) loadMembers();
             } catch (err) {
-                showNotification('操作失敗', 'error');
+                showNotification('更新管理員狀態失敗', 'error');
             }
         }
 
         async function deleteMember(gameId) {
-            if (!confirm(`確定要刪除 ${gameId} 嗎？`)) return;
+            if (!confirm(`確定要刪除用戶 ${gameId} 嗎？此操作不可恢復！`)) return;
             try {
                 const res = await fetch('/api/members/delete', {
                     method: 'POST',
@@ -119,11 +117,18 @@
                 showNotification(data.message, data.success ? 'success' : 'error');
                 if (data.success) loadMembers();
             } catch (err) {
-                showNotification('刪除失敗', 'error');
+                showNotification('刪除用戶失敗', 'error');
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => loadMembers());
+        function filterByJob(job) {
+            document.querySelectorAll('.job-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadMembers(job);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => loadMembers('all'));
     </script>
 </body>
+
 </html>

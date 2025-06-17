@@ -26,16 +26,12 @@
                     <button id="registerBtn" class="btn" onclick="registerForBattle()" disabled data-tooltip="報名當前幫戰">報名參戰</button>
                     <button id="cancelBtn" class="btn btn-danger" onclick="cancelRegistration()" disabled data-tooltip="取消報名">取消報名</button>
                     <button id="leaveBtn" class="btn btn-danger" onclick="showLeaveForm()" data-tooltip="提交請假申請">請假</button>
+                    <p id="contactNotice" style="display: none; color: red;">如需要取消報名，請聯絡指揮</p>
                 </div>
                 <h2>出戰表</h2>
                 <div id="battleFormation" class="battle-formation">
                     <p>尚未發佈出戰表</p>
                 </div>
-                <h2>備選名單</h2>
-                <div id="waitlist" class="registration-card">
-                    <p>無備選名單</p>
-                </div>
-                <p id="waitlistNote" style="display: none; color: #f56565;">如需取消報名，請聯絡指揮</p>
             </div>
         </div>
     </main>
@@ -53,46 +49,29 @@
                 const statusDiv = document.getElementById('battleStatus');
                 const registerBtn = document.getElementById('registerBtn');
                 const cancelBtn = document.getElementById('cancelBtn');
-                const formationDiv = document.getElementById('battleFormation');
-                const waitlistDiv = document.getElementById('waitlist');
-                const waitlistNote = document.getElementById('waitlistNote');
+                const contactNotice = document.getElementById('contactNotice');
                 if (data.success && data.battle) {
-                    const { battle, registration, formation, waitlist } = data;
+                    const { battle, registration, formation } = data;
                     const deadline = new Date(battle.deadline);
                     const isOpen = new Date() < deadline && battle.status === 'open';
                     statusDiv.innerHTML = `
                         <p><strong>幫戰時間：</strong>${new Date(battle.date).toLocaleString('zh-TW')}</p>
                         <p><strong>報名截止：</strong>${deadline.toLocaleString('zh-TW')}</p>
-                        <p><strong>報名狀態：</strong><span class="${registration ? 'status-registered' : 'status-not-registered'}">${registration ? '已報名' : '未報名'}</span></p>
-                        ${registration && formation ? `<p><strong>分配小隊：</strong>${formation.team} (${formation.group})</p>` : ''}
+                        <p><strong>報名狀態：</strong><span class="${registration ? 'status-registered' : 'status-not-registered'}">${registration ? (registration.isBackup ? '備選名單' : '已報名') : '未報名'}</span></p>
+                        ${formation ? `<p><strong>分配小隊：</strong>${formation.group} (${formation.team})</p>` : ''}
                     `;
-                    registerBtn.disabled = !isOpen && battle.status !== 'closed';
-                    cancelBtn.disabled = !registration;
-                    if (battle.status === 'published') {
-                        formationDiv.innerHTML = '<h3>最終出戰表</h3>';
-                        battle.formation.groups.forEach(group => {
-                            const assignments = battle.formation.assignments[group] || {};
-                            formationDiv.innerHTML += renderFormationTable(group, battle.formation.teams, assignments, [], true);
-                        });
-                    } else {
-                        formationDiv.innerHTML = '<p>尚未發佈出戰表</p>';
-                    }
-                    if (waitlist && waitlist.length > 0) {
-                        waitlistDiv.innerHTML = `
-                            <ul>${waitlist.map(w => `<li>${w.userId.gameId} (${w.isProxy ? `代報：${w.proxyBy}` : '自報'})</li>`).join('')}</ul>
-                        `;
-                        waitlistNote.style.display = registration && waitlist.some(w => w.userId.gameId === user.gameId) ? 'block' : 'none';
-                    } else {
-                        waitlistDiv.innerHTML = '<p>無備選名單</p>';
-                        waitlistNote.style.display = 'none';
+                    registerBtn.disabled = !battle.status === 'open';
+                    cancelBtn.disabled = !registration || !isOpen;
+                    contactNotice.style.display = registration && !isOpen ? 'block' : 'none';
+                    if (battle.status === 'published' || battle.status === 'confirmed') {
+                        const formationDiv = document.getElementById('battleFormation');
+                        formationDiv.innerHTML = '<h3>最終出戰表</h3>' + renderFormationTable(battle.formation, true);
                     }
                 } else {
                     statusDiv.innerHTML = '<p>目前無開放報名的幫戰</p>';
                     registerBtn.disabled = true;
                     cancelBtn.disabled = true;
-                    formationDiv.innerHTML = '<p>尚未發佈出戰表</p>';
-                    waitlistDiv.innerHTML = '<p>無備選名單</p>';
-                    waitlistNote.style.display = 'none';
+                    contactNotice.style.display = 'none';
                 }
             } catch (err) {
                 showNotification('無法載入幫戰狀態', 'error');
@@ -160,6 +139,30 @@
             } catch (err) {
                 showNotification('請假申請失敗', 'error');
             }
+        }
+
+        function renderFormationTable(formation, readonly = false) {
+            let html = '';
+            formation.groups.forEach(group => {
+                html += `<h4>${group}</h4>`;
+                formation.teams.forEach(team => {
+                    const players = formation.assignments[group]?.[team] || [];
+                    if (players.some(p => p)) {
+                        html += `
+                            <table class="team-table readonly">
+                                <tr><th colspan="2">${team}</th></tr>
+                                ${jobs.map((job, i) => `
+                                    <tr>
+                                        <td>${job}</td>
+                                        <td>${players[i] || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        `;
+                    }
+                });
+            });
+            return html;
         }
 
         document.addEventListener('DOMContentLoaded', loadBattleStatus);

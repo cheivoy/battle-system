@@ -3,11 +3,11 @@ const mongoose = require('mongoose');
 const battleSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     deadline: { type: Date, required: true },
-    status: { type: String, enum: ['open', 'closed', 'published', 'confirmed', 'draft'], default: 'open' },
+    status: { type: String, enum: ['pending', 'open', 'closed', 'published', 'confirmed'], default: 'pending' },
     formation: {
         groups: [String],
         teams: [String],
-        assignments: { type: Object, default: {} }
+        assignments: mongoose.Schema.Types.Mixed
     }
 });
 
