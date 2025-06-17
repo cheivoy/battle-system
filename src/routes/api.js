@@ -125,6 +125,17 @@ router.get('/attendance/user', ensureAuthenticated, async (req, res) => {
     }
 });
 
+router.get('/battle/current', ensureAuthenticated, async (req, res) => {
+    try {
+        const battle = await Battle.findOne({ status: 'open' });
+        if (!battle) return res.json({ success: false, message: '無開放的幫戰' });
+        res.json({ success: true, battle });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: '查詢失敗' });
+    }
+});
+
 router.post('/battle/open', ensureAdmin, async (req, res) => {
     const { date, deadline } = req.body;
     if (!date || !deadline) {
