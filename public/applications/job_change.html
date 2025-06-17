@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 更換職業</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,14 +13,16 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>更換職業</h2>
                 <div class="form-group">
                     <label>新職業</label>
                     <select id="jobSelect">
-                        <option value="">選擇職業</option>
+                        <option value="">請選擇職業</option>
                         <option value="素問">素問</option>
                         <option value="血河">血河</option>
                         <option value="九靈">九靈</option>
@@ -34,12 +36,17 @@
             </div>
         </div>
     </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function changeJob() {
             const job = document.getElementById('jobSelect').value;
-            if (!job) return alert('請選擇職業');
+            if (!job) {
+                showNotification('請選擇職業', 'error');
+                return;
+            }
             try {
                 const res = await fetch('/api/user/change-job', {
                     method: 'POST',
@@ -49,13 +56,13 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('職業更換成功');
+                    showNotification('職業更換成功', 'success');
                     window.location.reload();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('更換失敗');
+                showNotification('更換失敗', 'error');
             }
         }
     </script>
