@@ -1,75 +1,43 @@
 const express = require('express');
-const session = require('express-session');
-const passport = require('passport');
-const DiscordStrategy = require('passport-discord').Strategy;
 const mongoose = require('mongoose');
-const path = require('path');
-require('dotenv').config();
-
+const session = require('express-session');
+const RedisStore = require('connect-redis')(session);
+const { createClient } = require('redis');
+const passport = require('passport');
+const cors = require('cors');
+const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 
+dotenv.config();
 const app = express();
 
-// 中間件
+// 建立 Redis 客戶端
+const redisClient = createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+redisClient.on('error', (err) => console.error('Redis Client Error', err));
+redisClient.connect();
+
+app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static('public'));
 app.use(session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// MongoDB 連線
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGODB_URI).then(() => console.log('Connected to MongoDB'));
 
-// Passport Discord 策略
-passport.use(new DiscordStrategy({
-    clientID: process.env.DISCORD_CLIENT_ID,
-    clientSecret: process.env.DISCORD_CLIENT_SECRET,
-    callbackURL: process.env.DISCORD_CALLBACK_URL,
-    scope: ['identify']
-}, async (accessToken, refreshToken, profile, done) => {
-    try {
-        const User = require('./models/User');
-        let user = await User.findOne({ discordId: profile.id });
-        if (!user) {
-            user = new User({
-                discordId: profile.id,
-                discordUsername: profile.username
-            });
-            await user.save();
-        }
-        return done(null, user);
-    } catch (err) {
-        return done(err);
-    }
-}));
-
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
-    try {
-        const User = require('./models/User');
-        const user = await User.findById(id);
-        done(null, user);
-    } catch (err) {
-        done(err);
-    }
-});
-
-// 路由
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// 頁面路由
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-});
+app.get('*', (req, res) => res.sendFile(__dirname + '/public/index.html'));
 
-// 啟動伺服器
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
