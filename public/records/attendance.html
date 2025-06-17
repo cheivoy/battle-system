@@ -10,67 +10,64 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>個人出勤紀錄</h2>
-                <div class="stats-grid" id="statsGrid"></div>
-                <table class="team-table" id="attendanceTable">
-                    <tr>
-                        <th>日期</th><th>幫戰</th><th>小隊</th><th>狀態</th>
-                    </tr>
+                <div id="statsGrid" class="stats-grid"></div>
+                <h3>近期記錄</h3>
+                <table id="attendanceTable" class="team-table">
+                    <tr><th>日期</th><th>團</th><th>小隊</th><th>狀態</th></tr>
                 </table>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
         async function loadAttendance() {
             try {
                 const res = await fetch('/api/attendance/user', { credentials: 'include' });
                 const data = await res.json();
-                if (!data.success) {
-                    showNotification(data.message, 'error');
-                    return;
-                }
-                const { stats, records } = data;
-                document.getElementById('statsGrid').innerHTML = `
-                    <div class="stats-card">
-                        <div class="stats-number">${stats.attendanceRate.toFixed(1)}%</div>
-                        <p>出勤率</p>
-                    </div>
-                    <div class="stats-card">
-                        <div class="stats-number">${stats.attended}</div>
-                        <p>參戰次數</p>
-                    </div>
-                    <div class="stats-card">
-                        <div class="stats-number">${stats.absent}</div>
-                        <p>缺席次數</p>
-                    </div>
-                `;
-                const table = document.getElementById('attendanceTable');
-                records.forEach(record => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${new Date(record.date).toLocaleDateString('zh-TW')}</td>
-                        <td>${record.battleName || '幫戰'}</td>
-                        <td>${record.team || '-'}</td>
-                        <td>${record.attended ? '出勤' : '缺席'}</td>
+                if (data.success) {
+                    const { stats, records } = data;
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stats-card">
+                            <div class="stats-number">${stats.attendanceRate}%</div>
+                            <p>出勤率</p>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">${stats.totalBattles}</div>
+                            <p>總參戰次數</p>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">${stats.absences}</div>
+                            <p>缺席次數</p>
+                        </div>
                     `;
-                    table.appendChild(row);
-                });
+                    document.getElementById('attendanceTable').innerHTML = `
+                        <tr><th>日期</th><th>團</th><th>小隊</th><th>狀態</th></tr>
+                        ${records.slice(0, 10).map(record => `
+                            <tr>
+                                <td>${new Date(record.battleDate).toLocaleDateString('zh-TW')}</td>
+                                <td>${record.group || '-'}</td>
+                                <td>${record.team || '-'}</td>
+                                <td>${record.attended ? '出勤' : '缺席'}</td>
+                            </tr>
+                        `).join('')}
+                    `;
+                } else {
+                    showNotification(data.message, 'error');
+                }
             } catch (err) {
-                showNotification('無法載入出勤紀錄', 'error');
+                showNotification('無法載入出勤記錄', 'error');
             }
         }
+
         document.addEventListener('DOMContentLoaded', loadAttendance);
     </script>
 </body>
