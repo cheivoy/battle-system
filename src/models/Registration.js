@@ -6,7 +6,8 @@ const registrationSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     isProxy: { type: Boolean, default: false },
     proxyReason: { type: String },
-    proxyBy: { type: String }
+    proxyBy: { type: String },
+    isAlternate: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('Registration', registrationSchema);
