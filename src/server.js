@@ -6,7 +6,7 @@ const passport = require('passport');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
-require('./routes/auth');
+require('./routes/auth'); // 確保載入 auth.js
 
 const app = express();
 
