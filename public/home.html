@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 首頁</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -20,7 +20,7 @@
             <div class="tab-content">
                 <h2>報名狀態</h2>
                 <div id="battleStatus"></div>
-                <div id="battleFormation"></div>
+                <div id="battleFormation" class="battle-formation"></div>
             </div>
         </div>
     </div>
@@ -35,87 +35,120 @@
                 const battleData = await battleRes.json();
                 const regRes = await fetch('/api/registration/status', { credentials: 'include' });
                 const regData = await regRes.json();
+                
                 const statusDiv = document.getElementById('battleStatus');
                 if (!battleData.success || !battleData.battle) {
-                    statusDiv.innerHTML = '<p>目前無幫戰</p>';
+                    statusDiv.innerHTML = '<p>目前無開放的幫戰</p>';
                     return;
                 }
+                
                 const { battle } = battleData;
                 const isRegistered = regData.success && regData.registered;
                 const isDeadlinePassed = new Date(battle.deadline) < new Date();
+                
                 statusDiv.innerHTML = `
                     <div class="registration-card">
                         <div class="registration-status ${isRegistered ? 'status-registered' : 'status-not-registered'}">
-                            ${isRegistered ? `已報名，小隊：${regData.team || '待分配'}` : '未報名'}
+                            ${isRegistered ? `已報名，分配小隊：${regData.team || '待分配'}` : '未報名'}
                         </div>
                         <p>幫戰時間：${new Date(battle.date).toLocaleString('zh-TW')}</p>
-                        <p>截止時間：${new Date(battle.deadline).toLocaleString('zh-TW')}</p>
+                        <p>報名截止：${new Date(battle.deadline).toLocaleString('zh-TW')}</p>
                         ${!isDeadlinePassed ? `
                             ${isRegistered ? `
-                                <button class="btn btn-danger" onclick="cancelRegistration()">取消報名</button>
+                                <button class="btn btn-danger" onclick="cancelRegistration()" data-tooltip="取消本次幫戰報名">取消報名</button>
                             ` : `
-                                <button class="btn btn-success" onclick="registerForBattle()">報名</button>
+                                <button class="btn btn-success" onclick="registerForBattle()" data-tooltip="報名參加本次幫戰">報名參戰</button>
                             `}
-                            <button class="btn" onclick="showLeaveForm()">請假</button>
+                            <button class="btn" onclick="showLeaveForm()" data-tooltip="提交請假申請">請假</button>
                         ` : '<p>報名已截止</p>'}
                     </div>
                 `;
+                
                 if (battle.formationPublished) {
                     const formationDiv = document.getElementById('battleFormation');
-                    formationDiv.innerHTML = '<h3>出戰表</h3><table class="team-table readonly"><tr><th>團</th><th>小隊</th><th>職業</th><th>玩家</th></tr></table>';
-                    const table = formationDiv.querySelector('table');
+                    formationDiv.innerHTML = '<h3>出戰表</h3>';
+                    const table = document.createElement('table');
+                    table.className = 'team-table readonly';
+                    table.innerHTML = `
+                        <tr>
+                            <th>團</th><th>小隊</th><th>職業</th><th>玩家</th>
+                        </tr>
+                    `;
                     battle.formation.forEach(group => {
                         group.teams.forEach(team => {
                             team.members.forEach(member => {
-                                table.innerHTML += `<tr><td>${group.name}</td><td>${team.name}</td><td>${member.job}</td><td>${member.player || '-'}</td></tr>`;
+                                table.innerHTML += `
+                                    <tr>
+                                        <td>${group.name}</td>
+                                        <td>${team.name}</td>
+                                        <td>${member.job}</td>
+                                        <td>${member.player || '-'}</td>
+                                    </tr>
+                                `;
                             });
                         });
                     });
+                    formationDiv.appendChild(table);
                 }
             } catch (err) {
-                alert('無法載入資料');
+                showNotification('無法載入數據', 'error');
             }
         }
+        
         async function registerForBattle() {
             try {
-                const res = await fetch('/api/registration/register', { method: 'POST', credentials: 'include' });
+                const res = await fetch('/api/registration/register', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
                 const data = await res.json();
                 if (data.success) {
-                    alert('報名成功！');
+                    showNotification('報名成功！', 'success');
                     loadHomePage();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('報名失敗');
+                showNotification('報名失敗', 'error');
             }
         }
+        
         async function cancelRegistration() {
             try {
-                const res = await fetch('/api/registration/cancel', { method: 'POST', credentials: 'include' });
+                const res = await fetch('/api/registration/cancel', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
                 const data = await res.json();
                 if (data.success) {
-                    alert('已取消報名');
+                    showNotification('已取消報名', 'success');
                     loadHomePage();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('取消失敗');
+                showNotification('取消失敗', 'error');
             }
         }
+        
         function showLeaveForm() {
             showModal(`
                 <h3>請假申請</h3>
-                <label>請假日期</label>
-                <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
+                <div class="form-group">
+                    <label>請假日期</label>
+                    <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
+                </div>
                 <button class="btn btn-success" onclick="submitLeave()">提交</button>
                 <button class="btn close-modal" onclick="closeModal()">取消</button>
             `);
         }
+        
         async function submitLeave() {
             const leaveDate = document.getElementById('leaveDate').value;
-            if (!leaveDate) return alert('請選擇日期');
+            if (!leaveDate) {
+                showNotification('請選擇日期', 'error');
+                return;
+            }
             try {
                 const res = await fetch('/api/leave/submit', {
                     method: 'POST',
@@ -125,16 +158,17 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('請假申請已提交');
+                    showNotification('請假申請已提交', 'success');
                     closeModal();
                     loadHomePage();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('提交失敗');
+                showNotification('提交失敗', 'error');
             }
         }
+        
         document.addEventListener('DOMContentLoaded', loadHomePage);
     </script>
 </body>
