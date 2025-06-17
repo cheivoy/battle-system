@@ -4,75 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 成員管理</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
-            <div class="user-info" id="userInfo"></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
+            </div>
             <div class="tab-content">
                 <h2>成員管理</h2>
-                <div id="memberList"></div>
+                <div class="job-button-group">
+                    ${jobs.map(job => `<button class="job-button" onclick="filterByJob('${job}')">${job}</button>`).join('')}
+                    <button class="job-button" onclick="filterByJob('all')">全部</button>
+                </div>
+                <div id="memberList" class="job-members"></div>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
-        async function loadMembers() {
+        async function loadMembers(jobFilter = 'all') {
             try {
-                const res = await fetch('/api/members/list', { credentials: 'include' });
+                const res = await fetch(`/api/members/list?job=${jobFilter}`, { credentials: 'include' });
                 const data = await res.json();
-                if (!data.success) return alert(data.message);
-                const div = document.getElementById('memberList');
-                div.innerHTML = `
-                    <table class="team-table">
-                        <tr><th>遊戲 ID</th><th>職業</th><th>狀態</th><th>操作</th></tr>
-                        ${data.members.map(m => `
-                            <tr>
-                                <td>${m.gameId}</td>
-                                <td>${m.job}</td>
-                                <td>${m.onLeave ? '請假' : '正常'}</td>
-                                <td>
-                                    <button class="btn btn-danger" onclick="toggleLeave('${m.gameId}', ${!m.onLeave})">
-                                        ${m.onLeave ? '取消請假' : '設為請假'}
-                                    </button>
-                                    <button class="btn btn-danger" onclick="deleteMember('${m.gameId}')">刪除</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                `;
+                if (data.success) {
+                    document.getElementById('memberList').innerHTML = `
+                        <table class="team-table">
+                            <tr><th>遊戲 ID</th><th>職業</th><th>狀態</th><th>操作</th></tr>
+                            ${data.members.map(member => `
+                                <tr>
+                                    <td>${member.gameId}</td>
+                                    <td>${member.job}</td>
+                                    <td>${member.onLeave ? '請假中' : '正常'}</td>
+                                    <td>
+                                        <button class="btn btn-${member.onLeave ? 'success' : 'danger'}" onclick="toggleLeave('${member.gameId}')" data-tooltip="${member.onLeave ? '取消請假' : '設為請假'}">${member.onLeave ? '取消請假' : '請假'}</button>
+                                        <button class="btn btn-danger" onclick="deleteMember('${member.gameId}')" data-tooltip="刪除成員">刪除</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    `;
+                    document.getElementById('memberList').classList.add('active');
+                } else {
+                    showNotification(data.message, 'error');
+                }
             } catch (err) {
-                alert('無法載入成員列表');
+                showNotification('無法載入成員列表', 'error');
             }
         }
-        async function toggleLeave(gameId, onLeave) {
+
+        function filterByJob(job) {
+            document.querySelectorAll('.job-button').forEach(btn => btn.style.background = '#e0e7ff');
+            event.target.style.background = '#667eea';
+            event.target.style.color = 'white';
+            loadMembers(job);
+        }
+
+        async function toggleLeave(gameId) {
             try {
                 const res = await fetch('/api/members/toggle-leave', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ gameId, onLeave })
+                    body: JSON.stringify({ gameId })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    alert('狀態更新成功');
-                    loadMembers();
-                } else {
-                    alert(data.message);
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadMembers();
             } catch (err) {
-                alert('更新失敗');
+                showNotification('操作失敗', 'error');
             }
         }
+
         async function deleteMember(gameId) {
-            if (!confirm(`確定刪除 ${gameId}？`)) return;
+            if (!confirm(`確認刪除 ${gameId}？`)) return;
             try {
                 const res = await fetch('/api/members/delete', {
                     method: 'POST',
@@ -81,17 +92,14 @@
                     body: JSON.stringify({ gameId })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    alert('成員已刪除');
-                    loadMembers();
-                } else {
-                    alert(data.message);
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadMembers();
             } catch (err) {
-                alert('刪除失敗');
+                showNotification('刪除失敗', 'error');
             }
         }
-        document.addEventListener('DOMContentLoaded', loadMembers);
+
+        document.addEventListener('DOMContentLoaded', () => loadMembers());
     </script>
 </body>
 </html>
