@@ -1,49 +1,10 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 更改遊戲 ID</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -52,35 +13,25 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header">
-                <h1>🛡️ 幫戰報名管理系統</h1>
-            </div>
+            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>更改遊戲 ID</h2>
                 <div class="form-group">
                     <label>新遊戲 ID</label>
-                    <input type="text" id="gameIdInput" placeholder="請輸入新遊戲 ID">
+                    <input type="text" id="gameIdInput" placeholder="輸入新遊戲 ID">
                 </div>
                 <button class="btn btn-success" onclick="changeId()">提交</button>
             </div>
         </div>
     </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
     <script src="/scripts.js"></script>
     <script>
         async function changeId() {
             const gameId = document.getElementById('gameIdInput').value.trim();
-            if (!gameId) {
-                showNotification('請輸入遊戲 ID', 'error');
-                return;
-            }
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) {
-                showNotification('遊戲 ID 必須為 3-20 字元的字母或數字', 'error');
-                return;
-            }
+            if (!gameId) return alert('請輸入遊戲 ID');
+            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) return alert('遊戲 ID 需為 3-20 字元的字母或數字');
             try {
                 const res = await fetch('/api/user/change-id', {
                     method: 'POST',
@@ -90,13 +41,13 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showNotification('遊戲 ID 更換成功', 'success');
+                    alert('遊戲 ID 更換成功');
                     window.location.reload();
                 } else {
-                    showNotification(data.message, 'error');
+                    alert(data.message);
                 }
             } catch (err) {
-                showNotification('更換失敗', 'error');
+                alert('更換失敗');
             }
         }
     </script>
