@@ -10,26 +10,23 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>請假申請</h2>
                 <div class="form-group">
-                    <label>請假日期</label>
+                    <label>請假日期：</label>
                     <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
                 </div>
-                <button class="btn btn-success" onclick="submitLeave()">提交</button>
+                <button class="btn" onclick="submitLeave()" data-tooltip="提交請假申請">提交</button>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
         async function submitLeave() {
@@ -46,14 +43,9 @@
                     body: JSON.stringify({ date: leaveDate })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('請假申請已提交', 'success');
-                    window.location.reload();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
             } catch (err) {
-                showNotification('提交失敗', 'error');
+                showNotification('請假申請失敗', 'error');
             }
         }
     </script>
