@@ -6,20 +6,34 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config();
 const MongoStore = require('connect-mongo');
+const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 
 const app = express();
 
-// 中間件
-app.use(express.json());
-const cors = require('cors');
+// MongoDB 連線 (移到最前面)
+mongoose.set('strictQuery', true);
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
+// 中間件設定順序很重要
+// 1. CORS 設定 (必須在所有路由之前)
 app.use(cors({
-    origin: 'https://battle-system.onrender.com',
-    credentials: true
+    origin: process.env.NODE_ENV === 'production' 
+        ? 'https://battle-system.onrender.com' 
+        : 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 
+// 2. Express JSON 解析
+app.use(express.json());
+
+// 3. Session 設定 (修正 cookie 設定)
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -30,18 +44,15 @@ app.use(session({
     }),
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 小時
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 小時
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 跨域必須設定
     }
 }));
+
+// 4. Passport 初始化
 app.use(passport.initialize());
 app.use(passport.session());
-
-
-mongoose.set('strictQuery', true);
-// MongoDB 連線
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
 
 // Passport Discord 策略
 passport.use(new DiscordStrategy({
@@ -62,6 +73,7 @@ passport.use(new DiscordStrategy({
         }
         return done(null, user);
     } catch (err) {
+        console.error('Discord strategy error:', err);
         return done(err);
     }
 }));
@@ -73,6 +85,7 @@ passport.deserializeUser(async (id, done) => {
         const user = await User.findById(id);
         done(null, user);
     } catch (err) {
+        console.error('Deserialize user error:', err);
         done(err);
     }
 });
@@ -81,6 +94,8 @@ passport.deserializeUser(async (id, done) => {
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 
+// 靜態檔案服務
+app.use(express.static(path.join(__dirname, '../public')));
 
 // 頁面路由
 const pages = [
@@ -89,16 +104,32 @@ const pages = [
     'records/attendance.html',
     'admin/battle_management.html', 'admin/member_management.html', 'admin/formation_management.html', 'admin/statistics.html', 'admin/change_logs.html'
 ];
+
 pages.forEach(page => {
     app.get(`/${page}`, (req, res) => {
         res.sendFile(path.join(__dirname, '../public', page));
     });
 });
 
-app.use(express.static(path.join(__dirname, '../public')));
+// 健康檢查端點
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// 錯誤處理中間件
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+});
+
+// 404 處理
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: '找不到資源' });
+});
 
 // 啟動伺服器
 const port = process.env.PORT || 10000;
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server running on port ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
 });
