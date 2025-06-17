@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 個人出勤紀錄</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,44 +13,62 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>個人出勤紀錄</h2>
                 <div class="stats-grid" id="statsGrid"></div>
                 <table class="team-table" id="attendanceTable">
-                    <tr><th>日期</th><th>幫戰</th><th>小隊</th><th>狀態</th></tr>
+                    <tr>
+                        <th>日期</th><th>幫戰</th><th>小隊</th><th>狀態</th>
+                    </tr>
                 </table>
             </div>
         </div>
     </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function loadAttendance() {
             try {
                 const res = await fetch('/api/attendance/user', { credentials: 'include' });
                 const data = await res.json();
-                if (!data.success) return alert(data.message);
+                if (!data.success) {
+                    showNotification(data.message, 'error');
+                    return;
+                }
                 const { stats, records } = data;
                 document.getElementById('statsGrid').innerHTML = `
-                    <div class="stats-card"><div class="stats-number">${stats.attendanceRate.toFixed(1)}%</div><p>出勤率</p></div>
-                    <div class="stats-card"><div class="stats-number">${stats.attended}</div><p>參戰次數</p></div>
-                    <div class="stats-card"><div class="stats-number">${stats.absent}</div><p>缺席次數</p></div>
+                    <div class="stats-card">
+                        <div class="stats-number">${stats.attendanceRate.toFixed(1)}%</div>
+                        <p>出勤率</p>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${stats.attended}</div>
+                        <p>參戰次數</p>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${stats.absent}</div>
+                        <p>缺席次數</p>
+                    </div>
                 `;
                 const table = document.getElementById('attendanceTable');
                 records.forEach(record => {
-                    table.innerHTML += `
-                        <tr>
-                            <td>${new Date(record.date).toLocaleDateString('zh-TW')}</td>
-                            <td>${record.battleName || '幫戰'}</td>
-                            <td>${record.team || '-'}</td>
-                            <td>${record.attended ? '出勤' : '缺席'}</td>
-                        </tr>
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(record.date).toLocaleDateString('zh-TW')}</td>
+                        <td>${record.battleName || '幫戰'}</td>
+                        <td>${record.team || '-'}</td>
+                        <td>${record.attended ? '出勤' : '缺席'}</td>
                     `;
+                    table.appendChild(row);
                 });
             } catch (err) {
-                alert('無法載入出勤紀錄');
+                showNotification('無法載入出勤紀錄', 'error');
             }
         }
         document.addEventListener('DOMContentLoaded', loadAttendance);
