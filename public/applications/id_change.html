@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 更改遊戲 ID</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,25 +13,35 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>更改遊戲 ID</h2>
                 <div class="form-group">
                     <label>新遊戲 ID</label>
-                    <input type="text" id="gameIdInput" placeholder="輸入新遊戲 ID">
+                    <input type="text" id="gameIdInput" placeholder="請輸入新遊戲 ID">
                 </div>
                 <button class="btn btn-success" onclick="changeId()">提交</button>
             </div>
         </div>
     </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function changeId() {
             const gameId = document.getElementById('gameIdInput').value.trim();
-            if (!gameId) return alert('請輸入遊戲 ID');
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) return alert('遊戲 ID 需為 3-20 字元的字母或數字');
+            if (!gameId) {
+                showNotification('請輸入遊戲 ID', 'error');
+                return;
+            }
+            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) {
+                showNotification('遊戲 ID 必須為 3-20 字元的字母或數字', 'error');
+                return;
+            }
             try {
                 const res = await fetch('/api/user/change-id', {
                     method: 'POST',
@@ -41,13 +51,13 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('遊戲 ID 更換成功');
+                    showNotification('遊戲 ID 更換成功', 'success');
                     window.location.reload();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('更換失敗');
+                showNotification('更換失敗', 'error');
             }
         }
     </script>
