@@ -31,6 +31,8 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+
+mongoose.set('strictQuery', true);
 // MongoDB 連線
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('Connected to MongoDB'))
