@@ -18,27 +18,16 @@
                 <div id="userInfo" class="user-info"></div>
             </div>
             <div class="tab-content">
-                <h2>幫戰報名狀態</h2>
-                <div id="battleStatus" class="registration-card">
-                    <p>目前無開放報名的幫戰</p>
-                </div>
+                <h2>當前幫戰</h2>
+                <div id="battleStatus"></div>
                 <div class="form-group">
-                    <button id="registerBtn" class="btn" onclick="registerForBattle()" disabled data-tooltip="報名當前幫戰">報名參戰</button>
-                    <button id="cancelBtn" class="btn btn-danger" onclick="cancelRegistration()" disabled data-tooltip="取消報名">取消報名</button>
-                    <button id="leaveBtn" class="btn btn-danger" onclick="showLeaveForm()" data-tooltip="提交請假申請">請假</button>
+                    <button id="registerBtn" class="btn btn-success" onclick="registerBattle()">報名幫戰</button>
+                    <button id="cancelBtn" class="btn btn-danger" onclick="cancelRegistration()">取消報名</button>
                 </div>
-                <h2>出戰表</h2>
-                <div id="battleFormation" class="battle-formation">
-                    <p>尚未發佈出戰表</p>
-                </div>
+                <div id="battleFormation" class="battle-formation"></div>
             </div>
         </div>
     </main>
-    <div id="modal" class="modal">
-        <div id="modalContent" class="modal-content">
-            <button class="close-modal" onclick="closeModal()">&times;</button>
-        </div>
-    </div>
     <script src="/scripts.js"></script>
     <script>
         async function loadBattleStatus() {
@@ -48,6 +37,7 @@
                 const statusDiv = document.getElementById('battleStatus');
                 const registerBtn = document.getElementById('registerBtn');
                 const cancelBtn = document.getElementById('cancelBtn');
+                const formationDiv = document.getElementById('battleFormation');
                 if (data.success && data.battle) {
                     const { battle, registration, formation } = data;
                     const deadline = new Date(battle.deadline);
@@ -55,26 +45,56 @@
                     statusDiv.innerHTML = `
                         <p><strong>幫戰時間：</strong>${new Date(battle.date).toLocaleString('zh-TW')}</p>
                         <p><strong>報名截止：</strong>${deadline.toLocaleString('zh-TW')}</p>
-                        <p><strong>報名狀態：</strong><span class="${registration ? 'status-registered' : 'status-not-registered'}">${registration ? '已報名' : '未報名'}</span></p>
+                        <p><strong>報名狀態：</strong><span class="${registration ? 'status-registered' : 'status-not-registered'}">${registration.isAlternate ? '備選名單' : registration ? '已報名' : '未報名'}</span></p>
                         ${registration && formation ? `<p><strong>分配小隊：</strong>${formation.team} (${formation.group})</p>` : ''}
                     `;
-                    registerBtn.disabled = !isOpen || registration;
-                    cancelBtn.disabled = !registration || !isOpen;
+                    registerBtn.disabled = registration;
+                    cancelBtn.disabled = !registration;
                     if (formation && battle.status === 'published') {
-                        const formationDiv = document.getElementById('battleFormation');
                         formationDiv.innerHTML = '<h3>最終出戰表</h3>' + renderFormationTable(formation, true);
+                    }
+                    // 顯示備選名單
+                    const alternateRes = await fetch('/api/registration/alternate', { credentials: 'include' });
+                    const alternateData = await alternateRes.json();
+                    if (alternateData.success && alternateData.alternates.length) {
+                        statusDiv.innerHTML += `
+                            <p><strong>備選名單：</strong>${alternateData.alternates.join(', ')}</p>
+                            ${registration && registration.isAlternate ? '<p>如需取消報名，請聯絡指揮</p>' : ''}
+                        `;
                     }
                 } else {
                     statusDiv.innerHTML = '<p>目前無開放報名的幫戰</p>';
                     registerBtn.disabled = true;
                     cancelBtn.disabled = true;
+                    formationDiv.innerHTML = '<p>尚未發佈出戰表</p>';
                 }
             } catch (err) {
                 showNotification('無法載入幫戰狀態', 'error');
             }
         }
 
-        async function registerForBattle() {
+        function renderFormationTable(formation, readonly = false) {
+            if (!formation || !formation.assignments) return '<p>尚未發佈出戰表</p>';
+            return formation.groups.map(group => `
+                <h3>${group}</h3>
+                <table class="team-table readonly">
+                    <tr><th>小隊</th><th>職業</th><th>玩家</th></tr>
+                    ${formation.teams.map(team => `
+                        ${jobs.map((job, i) => `
+                            ${formation.assignments[group]?.[team]?.[`player${i}`] ? `
+                                <tr>
+                                    <td>${team}</td>
+                                    <td>${formation.assignments[group]?.[team]?.[`job${i}`] || '-'}</td>
+                                    <td>${formation.assignments[group]?.[team]?.[`player${i}`] || '-'}</td>
+                                </tr>
+                            ` : ''}
+                        `).join('')}
+                    `).join('')}
+                </table>
+            `).join('');
+        }
+
+        async function registerBattle() {
             try {
                 const res = await fetch('/api/registration/register', {
                     method: 'POST',
@@ -100,61 +120,6 @@
             } catch (err) {
                 showNotification('取消報名失敗', 'error');
             }
-        }
-
-        function showLeaveForm() {
-            showModal(`
-                <h3>請假申請</h3>
-                <div class="form-group">
-                    <label>請假日期：</label>
-                    <input type="date" id="leaveDate" min="${new Date().toISOString().split('T')[0]}">
-                </div>
-                <button class="btn" onclick="submitLeave()">提交</button>
-            `);
-        }
-
-        async function submitLeave() {
-            const leaveDate = document.getElementById('leaveDate').value;
-            if (!leaveDate) {
-                showNotification('請選擇日期', 'error');
-                return;
-            }
-            try {
-                const res = await fetch('/api/leave/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ date: leaveDate })
-                });
-                const data = await res.json();
-                showNotification(data.message, data.success ? 'success' : 'error');
-                if (data.success) {
-                    closeModal();
-                    loadBattleStatus();
-                }
-            } catch (err) {
-                showNotification('請假申請失敗', 'error');
-            }
-        }
-
-        function renderFormationTable(formation, readonly = false) {
-            return `
-                <table class="team-table ${readonly ? 'readonly' : ''}">
-                    <tr><th>團</th><th>小隊</th><th>職業</th><th>玩家</th></tr>
-                    ${formation.groups.map(group => `
-                        ${formation.teams.map(team => `
-                            ${jobs.map(job => `
-                                <tr>
-                                    <td>${group}</td>
-                                    <td>${team}</td>
-                                    <td>${job}</td>
-                                    <td>${formation.assignments[group]?.[team]?.[job] || '-'}</td>
-                                </tr>
-                            `).join('')}
-                        `).join('')}
-                    `).join('')}
-                </table>
-            `;
         }
 
         document.addEventListener('DOMContentLoaded', loadBattleStatus);
