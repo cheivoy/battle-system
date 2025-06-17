@@ -20,13 +20,16 @@
             <div class="tab-content">
                 <h2>成員管理</h2>
                 <div class="job-button-group">
-                    ${jobs.map(job => `<button class="job-button" onclick="filterByJob('${job}')">${job}</button>`).join('')}
+                    ${['鐵衣', '素問', '九靈', '碎夢', '龍吟', '血河', '神相'].map(job => `<button class="job-button" onclick="filterByJob('${job}')">${job}</button>`).join('')}
                     <button class="job-button" onclick="filterByJob('all')">全部</button>
                 </div>
                 <div id="memberList" class="job-members"></div>
             </div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div id="modalContent" class="modal-content"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function loadMembers(jobFilter = 'all') {
@@ -62,7 +65,10 @@
         }
 
         function filterByJob(job) {
-            document.querySelectorAll('.job-button').forEach(btn => btn.style.background = '#e0e7ff');
+            document.querySelectorAll('.job-button').forEach(btn => {
+                btn.style.background = '#ffffff';
+                btn.style.color = '#333';
+            });
             event.target.style.background = '#667eea';
             event.target.style.color = 'white';
             loadMembers(job);
@@ -89,4 +95,35 @@
                 const res = await fetch('/api/members/toggle-admin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include
+                    credentials: 'include',
+                    body: JSON.stringify({ gameId })
+                });
+                const data = await res.json();
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadMembers();
+            } catch (err) {
+                showNotification('操作失敗', 'error');
+            }
+        }
+
+        async function deleteMember(gameId) {
+            if (!confirm(`確定要刪除 ${gameId} 嗎？`)) return;
+            try {
+                const res = await fetch('/api/members/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ gameId })
+                });
+                const data = await res.json();
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadMembers();
+            } catch (err) {
+                showNotification('刪除失敗', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => loadMembers());
+    </script>
+</body>
+</html>
