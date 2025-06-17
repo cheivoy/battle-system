@@ -14,6 +14,11 @@ const app = express();
 
 // 中間件
 app.use(express.json());
+const cors = require('cors');
+app.use(cors({
+    origin: 'https://battle-system.onrender.com',
+    credentials: true
+}));
 
 app.use(session({
     secret: process.env.SESSION_SECRET,
