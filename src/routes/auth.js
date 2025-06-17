@@ -1,23 +1,37 @@
-const express = require('express');
 const passport = require('passport');
-const router = express.Router();
+const DiscordStrategy = require('passport-discord').Strategy;
+const User = require('../models/User');
+require('dotenv').config();
 
-router.get('/discord', passport.authenticate('discord'));
+passport.serializeUser((user, done) => {
+    done(null, user.id);
+});
 
-router.get('/discord/callback', passport.authenticate('discord', { failureRedirect: '/index.html' }), async (req, res) => {
-    if (!req.user.gameId) {
-        res.redirect('/index.html?setup=true');
-    } else {
-        res.redirect('/home.html');
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch (err) {
+        done(err, null);
     }
 });
 
-router.get('/logout', (req, res) => {
-    req.logout(err => {
-        if (err) return res.status(500).json({ success: false, message: '登出失敗' });
-        req.session.destroy();
-        res.redirect('/index.html');
-    });
-});
+passport.use(new DiscordStrategy({
+    clientID: process.env.DISCORD_CLIENT_ID,
+    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    callbackURL: process.env.DISCORD_CALLBACK_URL,
+    scope: ['identify']
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ discordId: profile.id });
+        if (!user) {
+            user = new User({ discordId: profile.id });
+            await user.save();
+        }
+        done(null, user);
+    } catch (err) {
+        done(err, null);
+    }
+}));
 
-module.exports = router;
+module.exports = passport;
