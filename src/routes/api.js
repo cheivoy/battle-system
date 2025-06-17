@@ -27,7 +27,7 @@ router.get('/user/setup', ensureAuthenticated, (req, res) => {
 
 // 用戶註冊
 router.post('/user/register', ensureAuthenticated, async (req, res) => {
-    const { gameId, job, isAdmin } = req.body;
+    const { gameId, job } = req.body;
     if (!gameId || !job) {
         return res.status(400).json({ success: false, message: '請填寫所有必要欄位' });
     }
@@ -41,7 +41,7 @@ router.post('/user/register', ensureAuthenticated, async (req, res) => {
         }
         req.user.gameId = gameId;
         req.user.job = job;
-        req.user.isAdmin = isAdmin;
+        req.user.isAdmin = false; // 預設非管理員
         await req.user.save();
         await ChangeLog.create({
             userId: gameId,
@@ -157,6 +157,10 @@ router.post('/battle/open', ensureAdmin, async (req, res) => {
         if (existingBattle) {
             return res.status(400).json({ success: false, message: '已有開放的幫戰' });
         }
+        const lastBattle = await Battle.findOne({ status: 'published' });
+        if (lastBattle) {
+            return res.status(400).json({ success: false, message: '請先確認上次幫戰的最終陣型' });
+        }
         const battle = new Battle({
             date: new Date(date),
             deadline: new Date(deadline),
@@ -203,9 +207,6 @@ router.post('/registration/register', ensureAuthenticated, async (req, res) => {
         if (!battle) {
             return res.status(400).json({ success: false, message: '無開放的幫戰' });
         }
-        if (new Date() > new Date(battle.deadline)) {
-            return res.status(400).json({ success: false, message: '報名已截止' });
-        }
         const user = await User.findOne({ gameId: req.user.gameId });
         if (user.onLeave) {
             return res.status(400).json({ success: false, message: '請假中，無法報名' });
@@ -214,18 +215,20 @@ router.post('/registration/register', ensureAuthenticated, async (req, res) => {
         if (existingRegistration) {
             return res.status(400).json({ success: false, message: '已報名' });
         }
+        const isAlternate = new Date() > new Date(battle.deadline);
         const registration = new Registration({
             userId: req.user.gameId,
-            battleId: battle._id
+            battleId: battle._id,
+            isAlternate
         });
         await registration.save();
         await ChangeLog.create({
             userId: req.user.gameId,
-            message: `用戶 ${req.user.gameId} 報名幫戰，時間: ${new Date(battle.date).toLocaleString()}`,
+            message: `用戶 ${req.user.gameId} ${isAlternate ? '加入備選名單' : '報名幫戰'}，時間: ${new Date(battle.date).toLocaleString()}`,
             type: 'register',
             timestamp: new Date()
         });
-        res.json({ success: true, message: '報名成功' });
+        res.json({ success: true, message: isAlternate ? '已超過報名時間，已加入備選名單' : '報名成功', isAlternate });
     } catch (err) {
         res.status(500).json({ success: false, message: '報名失敗' });
     }
@@ -277,23 +280,39 @@ router.post('/registration/proxy', ensureAuthenticated, async (req, res) => {
         if (existingRegistration) {
             return res.status(400).json({ success: false, message: '目標用戶已報名' });
         }
+        const isAlternate = new Date() > new Date(battle.deadline);
         const registration = new Registration({
             userId: targetGameId,
             battleId: battle._id,
             isProxy: true,
             proxyReason: reason,
-            proxyBy: req.user.gameId
+            proxyBy: req.user.gameId,
+            isAlternate
         });
         await registration.save();
         await ChangeLog.create({
             userId: req.user.gameId,
-            message: `用戶 ${req.user.gameId} 為 ${targetGameId} 代報名幫戰，原因: ${reason}`,
+            message: `用戶 ${req.user.gameId} 為 ${targetGameId} 代報名幫戰，原因: ${reason}${isAlternate ? '（備選名單）' : ''}`,
             type: 'register',
             timestamp: new Date()
         });
         res.json({ success: true, message: '代報名成功' });
     } catch (err) {
         res.status(500).json({ success: false, message: '代報名失敗' });
+    }
+});
+
+// 查詢備選名單
+router.get('/registration/alternate', ensureAuthenticated, async (req, res) => {
+    try {
+        const battle = await Battle.findOne({ status: 'open' });
+        if (!battle) {
+            return res.status(400).json({ success: false, message: '無開放的幫戰' });
+        }
+        const alternates = await Registration.find({ battleId: battle._id, isAlternate: true }).select('userId');
+        res.json({ success: true, alternates: alternates.map(r => r.userId) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: '無法載入備選名單' });
     }
 });
 
@@ -353,7 +372,7 @@ router.get('/members/list', ensureAdmin, async (req, res) => {
     const { job } = req.query;
     try {
         const query = job && job !== 'all' ? { job } : {};
-        const members = await User.find(query).select('gameId job onLeave');
+        const members = await User.find(query).select('gameId job onLeave isAdmin');
         res.json({ success: true, members });
     } catch (err) {
         res.status(500).json({ success: false, message: '無法載入成員列表' });
@@ -382,6 +401,31 @@ router.post('/members/toggle-leave', ensureAdmin, async (req, res) => {
         res.json({ success: true, message: '請假狀態更新成功' });
     } catch (err) {
         res.status(500).json({ success: false, message: '更新請假狀態失敗' });
+    }
+});
+
+// 切換管理員狀態
+router.post('/members/toggle-admin', ensureAdmin, async (req, res) => {
+    const { gameId } = req.body;
+    if (!gameId) {
+        return res.status(400).json({ success: false, message: '請提供遊戲 ID' });
+    }
+    try {
+        const user = await User.findOne({ gameId });
+        if (!user) {
+            return res.status(400).json({ success: false, message: '用戶不存在' });
+        }
+        user.isAdmin = !user.isAdmin;
+        await user.save();
+        await ChangeLog.create({
+            userId: req.user.gameId,
+            message: `管理員 ${req.user.gameId} 將 ${gameId} 的管理員狀態設為 ${user.isAdmin ? '管理員' : '普通用戶'}`,
+            type: 'other',
+            timestamp: new Date()
+        });
+        res.json({ success: true, message: '管理員狀態更新成功' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: '更新管理員狀態失敗' });
     }
 });
 
