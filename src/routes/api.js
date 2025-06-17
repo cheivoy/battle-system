@@ -6,7 +6,7 @@ const Registration = require('../models/Registration');
 const LeaveRequest = require('../models/LeaveRequest');
 const ChangeLog = require('../models/ChangeLog');
 const Attendance = require('../models/Attendance');
-const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
+
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
