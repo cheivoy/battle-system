@@ -1,6 +1,34 @@
 const jobs = ['鐵衣', '素問', '九靈', '碎夢', '龍吟', '血河', '神相'];
 const teamNames = ['進攻隊', '防守隊', '機動隊', '空拆隊', '拆塔隊'];
 
+async function checkUserStatus() {
+    try {
+        const res = await fetch('/api/user/status', { credentials: 'include' });
+        const data = await res.json();
+        if (!data.success) {
+            console.log('User not logged in, redirecting to login');
+            if (window.location.pathname !== '/login.html') {
+                window.location.href = '/login.html?error=unauthenticated';
+            }
+            return null;
+        }
+        const userInfo = document.getElementById('userInfo');
+        if (userInfo) {
+            userInfo.innerHTML = `
+                <span>歡迎，${data.user.gameId || data.user.discordId}</span>
+                <a href="/auth/logout" class="btn btn-out">登出</a>
+            `;
+        }
+        return data.user;
+    } catch (err) {
+        console.error('Error checking user status:', err);
+        if (window.location.pathname !== '/login.html') {
+            window.location.href = '/login.html?error=check_status';
+        }
+        return null;
+    }
+}
+
 function showNotification(message, type) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;

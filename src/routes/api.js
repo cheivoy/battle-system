@@ -636,4 +636,19 @@ router.get('/change-logs', ensureAdmin, async (req, res) => {
     }
 });
 
+router.get('/user/status', (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.json({ success: false, message: '未登入' });
+    }
+    res.json({
+        success: true,
+        user: {
+            discordId: req.user.discordId,
+            gameId: req.user.gameId,
+            job: req.user.job,
+            isAdmin: req.user.isAdmin
+        }
+    });
+});
+
 module.exports = router;
