@@ -10,50 +10,48 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>統計報表</h2>
-                <div class="stats-grid" id="statsGrid"></div>
+                <div id="statsGrid" class="stats-grid"></div>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
         async function loadStats() {
             try {
                 const res = await fetch('/api/stats', { credentials: 'include' });
                 const data = await res.json();
-                if (!data.success) {
+                if (data.success) {
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stats-card">
+                            <div class="stats-number">${data.stats.totalMembers}</div>
+                            <p>總成員數</p>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">${data.stats.registered}</div>
+                            <p>報名人數</p>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">${data.stats.onLeave}</div>
+                            <p>請假人數</p>
+                        </div>
+                    `;
+                } else {
                     showNotification(data.message, 'error');
-                    return;
                 }
-                document.getElementById('statsGrid').innerHTML = `
-                    <div class="stats-card">
-                        <div class="stats-number">${data.stats.totalMembers}</div>
-                        <p>總成員數</p>
-                    </div>
-                    <div class="stats-card">
-                        <div class="stats-number">${data.stats.registered}</div>
-                        <p>報名人數</p>
-                    </div>
-                    <div class="stats-card">
-                        <div class="stats-number">${data.stats.onLeave}</div>
-                        <p>請假人數</p>
-                    </div>
-                `;
             } catch (err) {
                 showNotification('無法載入統計數據', 'error');
             }
         }
+
         document.addEventListener('DOMContentLoaded', loadStats);
     </script>
 </body>
