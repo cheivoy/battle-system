@@ -1,132 +1,126 @@
-const jobs = ['素問', '血河', '九靈', '龍吟', '碎夢', '神相', '鐵衣'];
-const teamNames = ['進攻隊', '防守隊', '機動隊', '空拆隊', '拆塔隊'];
-
-function initSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar) return;
-    fetch('/api/user/current', { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-            if (!data.success) {
-                window.location.href = '/index.html';
-                return;
-            }
-            const isAdmin = data.user.isAdmin;
-            const navHtml = `
-                <div class="sidebar-header">
-                    <h2>🛡️ 幫戰系統</h2>
-                </div>
-                <ul class="sidebar-nav">
-                    <li><a href="/home.html" class="${window.location.pathname.includes('home.html') ? 'active' : ''}"><i class="fas fa-home"></i> 首頁</a></li>
-                    <li>
-                        <button onclick="toggleSubMenu('applicationsMenu')"><i class="fas fa-file-alt"></i> 申請專區</button>
-                        <ul id="applicationsMenu" class="sub-menu">
-                            <li><a href="/applications/job_change.html" class="${window.location.pathname.includes('job_change.html') ? 'active' : ''}">更換職業</a></li>
-                            <li><a href="/applications/id_change.html" class="${window.location.pathname.includes('id_change.html') ? 'active' : ''}">更改遊戲 ID</a></li>
-                            <li><a href="/applications/leave.html" class="${window.location.pathname.includes('leave.html') ? 'active' : ''}">請假申請</a></li>
-                            <li><a href="/applications/proxy_registration.html" class="${window.location.pathname.includes('proxy_registration.html') ? 'active' : ''}">代報名</a></li>
-                        </ul>
-                    </li>
-                    <li>
-                        <button onclick="toggleSubMenu('recordsMenu')"><i class="fas fa-chart-bar"></i> 出勤紀錄</button>
-                        <ul id="recordsMenu" class="sub-menu">
-                            <li><a href="/records/attendance.html" class="${window.location.pathname.includes('attendance.html') ? 'active' : ''}">個人出勤</a></li>
-                        </ul>
-                    </li>
-                    ${isAdmin ? `
-                        <li>
-                            <button onclick="toggleSubMenu('adminMenu')"><i class="fas fa-user-shield"></i> 管理員板塊</button>
-                            <ul id="adminMenu" class="sub-menu">
-                                <li><a href="/admin/battle_management.html" class="${window.location.pathname.includes('battle_management.html') ? 'active' : ''}">幫戰管理</a></li>
-                                <li><a href="/admin/member_management.html" class="${window.location.pathname.includes('member_management.html') ? 'active' : ''}">成員管理</a></li>
-                                <li><a href="/admin/formation_management.html" class="${window.location.pathname.includes('formation_management.html') ? 'active' : ''}">出戰表</a></li>
-                                <li><a href="/admin/statistics.html" class="${window.location.pathname.includes('statistics.html') ? 'active' : ''}">統計報表</a></li>
-                                <li><a href="/admin/change_logs.html" class="${window.location.pathname.includes('change_logs.html') ? 'active' : ''}">異動記錄</a></li>
-                            </ul>
-                        </li>
-                    ` : ''}
-                </ul>
-            `;
-            sidebar.innerHTML = navHtml;
-            document.getElementById('hamburger')?.addEventListener('click', () => toggleSidebar());
-            document.getElementById('mainContent')?.addEventListener('click', () => {
-                if (window.innerWidth <= 767) toggleSidebar(false);
-            });
-            const userInfo = document.getElementById('userInfo');
-            if (userInfo) {
-                userInfo.innerHTML = `
-                    <strong>${data.user.gameId}</strong> | <span>${data.user.job}</span>
-                    <button onclick="logout()" class="btn btn-danger">登出</button>
-                `;
-            }
-        });
-}
-
-function toggleSubMenu(menuId) {
-    const menu = document.getElementById(menuId);
-    if (menu) {
-        menu.classList.toggle('active');
-    }
-}
-
-function toggleSidebar(show = null) {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-    const isMobile = window.innerWidth <= 767;
-    if (sidebar && mainContent) {
-        if (show === null) {
-            sidebar.classList.toggle('active');
-        } else {
-            sidebar.classList.toggle('active', show && isMobile);
-        }
-        if (isMobile) {
-            mainContent.classList.toggle('full-width', !sidebar.classList.contains('active'));
-        }
-    }
-}
+const jobs = ['戰士', '法師', '牧師', '盜賊', '獵人', '騎士', '薩滿', '術士', '德魯伊'];
 
 function showNotification(message, type) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    setTimeout(() => notification.remove(), 3000);
 }
 
 function showModal(content) {
-    const modal = document.getElementById('modal');
-    const modalContent = document.getElementById('modalContent');
-    if (modal && modalContent) {
-        modalContent.innerHTML = content;
-        modal.classList.add('active');
-    }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `<div class="modal-content">${content}</div>`;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
 }
 
 function closeModal() {
-    const modal = document.getElementById('modal');
-    if (modal) {
-        modal.classList.remove('active');
-        document.getElementById('modalContent').innerHTML = '';
-    }
+    const modal = document.querySelector('.modal');
+    if (modal) modal.remove();
 }
 
+// 防抖函數
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// 初始化側邊欄
+function initSidebar(user) {
+    const sidebar = document.getElementById('sidebar');
+    const links = [
+        { text: '首頁', href: '/home.html', icon: 'fas fa-home' },
+        { text: '更換職業', href: '/applications/job_change.html', icon: 'fas fa-user-cog' },
+        { text: '更改遊戲 ID', href: '/applications/id_change.html', icon: 'fas fa-id-card' },
+        { text: '請假申請', href: '/applications/leave.html', icon: 'fas fa-calendar-times' },
+        { text: '代報名', href: '/applications/proxy_registration.html', icon: 'fas fa-user-plus' },
+        { text: '出勤記錄', href: '/records/attendance.html', icon: 'fas fa-check-circle' }
+    ];
+    if (user.isAdmin) {
+        links.push(
+            { text: '幫戰管理', href: '/admin/battle_management.html', icon: 'fas fa-shield-alt' },
+            { text: '成員管理', href: '/admin/member_management.html', icon: 'fas fa-users' },
+            { text: '出戰表', href: '/admin/formation_management.html', icon: 'fas fa-table' },
+            { text: '統計報表', href: '/admin/statistics.html', icon: 'fas fa-chart-bar' },
+            { text: '異動記錄', href: '/admin/change_logs.html', icon: 'fas fa-history' }
+        );
+    }
+    sidebar.innerHTML = links.map(link => `
+        <a href="${link.href}" data-tooltip="${link.text}">
+            <i class="${link.icon}"></i> ${link.text}
+        </a>
+    `).join('');
+}
+
+// 登出
 async function logout() {
     try {
         const res = await fetch('/auth/logout', { credentials: 'include' });
-        if (res.ok) {
-            showNotification('已成功登出', 'success');
-            window.location.href = '/index.html';
-        }
+        const data = await res.json();
+        if (data.success) window.location.href = '/';
     } catch (err) {
         showNotification('登出失敗', 'error');
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.pathname !== '/index.html') {
-        initSidebar();
+// 渲染出戰表（避免重複渲染）
+function renderFormationTable(formation, readonly = false) {
+    const table = document.querySelector('.battle-formation table');
+    if (!table || JSON.stringify(formation) === table.dataset.lastFormation) return; // 避免重複渲染
+    table.dataset.lastFormation = JSON.stringify(formation);
+    table.innerHTML = `
+        <tr><th>團</th><th>小隊</th><th>職業</th><th>玩家</th></tr>
+        ${formation.groups.map(group => `
+            ${formation.teams.map(team => `
+                ${jobs.map(job => `
+                    <tr>
+                        <td>${group}</td>
+                        <td>${team}</td>
+                        <td>${job}</td>
+                        <td>${readonly ? (formation.assignments[group]?.[team]?.[job] || '-') : `
+                            <select onchange="updateAssignment('${group}', '${team}', '${job}', this.value)">
+                                <option value="">無</option>
+                                ${registeredUsers.filter(u => u.job === job).map(u => `
+                                    <option value="${u.gameId}" ${formation.assignments[group]?.[team]?.[job] === u.gameId ? 'selected' : ''}>${u.gameId}</option>
+                                `).join('')}
+                            </select>
+                        `}</td>
+                    </tr>
+                `).join('')}
+            `).join('')}
+        `).join('')}
+    `;
+}
+
+// 側邊欄切換
+document.getElementById('hamburger').addEventListener('click', debounce(() => {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('mainContent').classList.toggle('shifted');
+}, 100));
+
+// 初始化用戶資訊
+async function initUserInfo() {
+    try {
+        const res = await fetch('/api/user/current', { credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            const userInfo = document.getElementById('userInfo');
+            userInfo.innerHTML = `
+                <span>歡迎，${data.user.gameId} (${data.user.job})</span>
+                <button class="btn btn-danger" onclick="logout()">登出</button>
+            `;
+            initSidebar(data.user);
+        } else {
+            window.location.href = '/';
+        }
+    } catch (err) {
+        window.location.href = '/';
     }
-});
+}
+
+document.addEventListener('DOMContentLoaded', initUserInfo);
