@@ -10,35 +10,32 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>更改遊戲 ID</h2>
                 <div class="form-group">
-                    <label>新遊戲 ID</label>
-                    <input type="text" id="gameIdInput" placeholder="請輸入新遊戲 ID">
+                    <label>新遊戲 ID：</label>
+                    <input type="text" id="newGameId" placeholder="請輸入新遊戲 ID">
                 </div>
-                <button class="btn btn-success" onclick="changeId()">提交</button>
+                <button class="btn" onclick="changeGameId()" data-tooltip="提交新遊戲 ID">提交</button>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
-        async function changeId() {
-            const gameId = document.getElementById('gameIdInput').value.trim();
-            if (!gameId) {
+        async function changeGameId() {
+            const newGameId = document.getElementById('newGameId').value.trim();
+            if (!newGameId) {
                 showNotification('請輸入遊戲 ID', 'error');
                 return;
             }
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) {
+            if (!/^[a-zA-Z0-9]{3,20}$/.test(newGameId)) {
                 showNotification('遊戲 ID 必須為 3-20 字元的字母或數字', 'error');
                 return;
             }
@@ -47,17 +44,13 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ gameId })
+                    body: JSON.stringify({ gameId: newGameId })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('遊戲 ID 更換成功', 'success');
-                    window.location.reload();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) initSidebar();
             } catch (err) {
-                showNotification('更換失敗', 'error');
+                showNotification('更改遊戲 ID 失敗', 'error');
             }
         }
     </script>
