@@ -10,44 +10,77 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>幫戰管理</h2>
                 <div class="admin-section">
-                    <h3>新增幫戰</h3>
+                    <h3>開啟新幫戰</h3>
                     <div class="form-group">
-                        <label>幫戰日期</label>
-                        <input type="datetime-local" id="battleDate">
+                        <label>幫戰日期：</label>
+                        <input type="date" id="battleDate" min="${new Date().toISOString().split('T')[0]}">
                     </div>
                     <div class="form-group">
-                        <label>報名截止時間</label>
-                        <input type="datetime-local" id="battleDeadline">
+                        <label>幫戰時間：</label>
+                        <input type="time" id="battleTime">
                     </div>
-                    <button class="btn btn-success" onclick="createBattle()">新增</button>
+                    <div class="form-group">
+                        <label>報名截止日期：</label>
+                        <input type="date" id="deadlineDate" min="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="form-group">
+                        <label>報名截止時間：</label>
+                        <input type="time" id="deadlineTime">
+                    </div>
+                    <button class="btn" onclick="openBattle()" data-tooltip="開啟幫戰報名">開啟報名</button>
                 </div>
                 <div class="admin-section">
                     <h3>當前幫戰</h3>
                     <div id="currentBattle"></div>
+                    <button class="btn btn-danger" onclick="closeBattle()" data-tooltip="關閉當前幫戰報名">關閉報名</button>
                 </div>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
-        async function createBattle() {
-            const date = document.getElementById('battleDate').value;
-            const deadline = document.getElementById('battleDeadline').value;
-            if (!date || !deadline) {
+        async function loadCurrentBattle() {
+            try {
+                const res = await fetch('/api/battle/current', { credentials: 'include' });
+                const data = await res.json();
+                const currentBattleDiv = document.getElementById('currentBattle');
+                if (data.success && data.battle) {
+                    currentBattleDiv.innerHTML = `
+                        <p><strong>幫戰時間：</strong>${new Date(data.battle.date).toLocaleString('zh-TW')}</p>
+                        <p><strong>報名截止：</strong>${new Date(data.battle.deadline).toLocaleString('zh-TW')}</p>
+                        <p><strong>狀態：</strong>${data.battle.status}</p>
+                    `;
+                } else {
+                    currentBattleDiv.innerHTML = '<p>無當前幫戰</p>';
+                }
+            } catch (err) {
+                showNotification('無法載入幫戰資訊', 'error');
+            }
+        }
+
+        async function openBattle() {
+            const battleDate = document.getElementById('battleDate').value;
+            const battleTime = document.getElementById('battleTime').value;
+            const deadlineDate = document.getElementById('deadlineDate').value;
+            const deadlineTime = document.getElementById('deadlineTime').value;
+            if (!battleDate || !battleTime || !deadlineDate || !deadlineTime) {
                 showNotification('請填寫所有欄位', 'error');
+                return;
+            }
+            const battleDateTime = new Date(`${battleDate}T${battleTime}`);
+            const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+            if (deadlineDateTime >= battleDateTime) {
+                showNotification('報名截止時間必須早於幫戰時間', 'error');
                 return;
             }
             try {
@@ -55,19 +88,16 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ date, deadline })
+                    body: JSON.stringify({ date: battleDateTime, deadline: deadlineDateTime })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('幫戰已新增', 'success');
-                    loadCurrentBattle();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadCurrentBattle();
             } catch (err) {
-                showNotification('新增失敗', 'error');
+                showNotification('開啟幫戰失敗', 'error');
             }
         }
+
         async function closeBattle() {
             try {
                 const res = await fetch('/api/battle/close', {
@@ -75,34 +105,13 @@
                     credentials: 'include'
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('幫戰已關閉', 'success');
-                    loadCurrentBattle();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) loadCurrentBattle();
             } catch (err) {
-                showNotification('關閉失敗', 'error');
+                showNotification('關閉幫戰失敗', 'error');
             }
         }
-        async function loadCurrentBattle() {
-            try {
-                const res = await fetch('/api/battle/current', { credentials: 'include' });
-                const data = await res.json();
-                const div = document.getElementById('currentBattle');
-                if (!data.success || !data.battle) {
-                    div.innerHTML = '<p>無開放的幫戰</p>';
-                    return;
-                }
-                div.innerHTML = `
-                    <p>幫戰日期：${new Date(data.battle.date).toLocaleString('zh-TW')}</p>
-                    <p>報名截止：${new Date(data.battle.deadline).toLocaleString('zh-TW')}</p>
-                    <button class="btn btn-danger" onclick="closeBattle()">關閉報名</button>
-                `;
-            } catch (err) {
-                showNotification('無法載入幫戰資訊', 'error');
-            }
-        }
+
         document.addEventListener('DOMContentLoaded', loadCurrentBattle);
     </script>
 </body>
