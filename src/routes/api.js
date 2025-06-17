@@ -25,7 +25,7 @@ router.get('/user/setup', ensureAuthenticated, (req, res) => {
     res.json({ success: true });
 });
 
-// 用戶註冊
+// 用戶註冊（移除 isAdmin 選項）
 router.post('/user/register', ensureAuthenticated, async (req, res) => {
     const { gameId, job } = req.body;
     if (!gameId || !job) {
@@ -41,7 +41,6 @@ router.post('/user/register', ensureAuthenticated, async (req, res) => {
         }
         req.user.gameId = gameId;
         req.user.job = job;
-        req.user.isAdmin = false; // 預設非管理員
         await req.user.save();
         await ChangeLog.create({
             userId: gameId,
@@ -118,14 +117,15 @@ router.post('/user/change-id', ensureAuthenticated, async (req, res) => {
     }
 });
 
-// 當前幫戰資訊
+// 當前幫戰資訊（包含備選名單）
 router.get('/battle/current', ensureAuthenticated, async (req, res) => {
     try {
-        const battle = await Battle.findOne({ status: { $in: ['open', 'published'] } });
+        const battle = await Battle.findOne({ status: { $in: ['open', 'published', 'closed'] } });
         if (!battle) {
             return res.json({ success: false, message: '無當前幫戰' });
         }
         const registration = await Registration.findOne({ userId: req.user.gameId, battleId: battle._id });
+        const waitlist = await Registration.find({ battleId: battle._id, isWaitlist: true }).populate('userId', 'gameId');
         let formation = null;
         if (registration && battle.formation && battle.status === 'published') {
             const assignments = battle.formation.assignments;
@@ -140,13 +140,13 @@ router.get('/battle/current', ensureAuthenticated, async (req, res) => {
                 }
             }
         }
-        res.json({ success: true, battle, registration: !!registration, formation });
+        res.json({ success: true, battle, registration: !!registration, formation, waitlist });
     } catch (err) {
         res.status(500).json({ success: false, message: '無法載入幫戰資訊' });
     }
 });
 
-// 開啟幫戰
+// 開啟幫戰（檢查上次幫戰）
 router.post('/battle/open', ensureAdmin, async (req, res) => {
     const { date, deadline } = req.body;
     if (!date || !deadline) {
@@ -159,7 +159,7 @@ router.post('/battle/open', ensureAdmin, async (req, res) => {
         }
         const lastBattle = await Battle.findOne({ status: 'published' });
         if (lastBattle) {
-            return res.status(400).json({ success: false, message: '請先確認上次幫戰的最終陣型' });
+            return res.status(400).json({ success: false, message: '請先確認上次幫戰最終陣型', needsConfirmation: true });
         }
         const battle = new Battle({
             date: new Date(date),
@@ -176,6 +176,32 @@ router.post('/battle/open', ensureAdmin, async (req, res) => {
         res.json({ success: true, message: '幫戰已開啟' });
     } catch (err) {
         res.status(500).json({ success: false, message: '開啟幫戰失敗' });
+    }
+});
+
+// 暫存新幫戰
+router.post('/battle/draft', ensureAdmin, async (req, res) => {
+    const { date, deadline } = req.body;
+    if (!date || !deadline) {
+        return res.status(400).json({ success: false, message: '請填寫所有欄位' });
+    }
+    try {
+        const battle = new Battle({
+            date: new Date(date),
+            deadline: new Date(deadline),
+            status: 'draft',
+            formation: { groups: ['團1', '團2'], teams: ['進攻隊', '防守隊', '機動隊', '空拆隊', '拆塔隊'], assignments: {} }
+        });
+        await battle.save();
+        await ChangeLog.create({
+            userId: req.user.gameId,
+            message: `管理員 ${req.user.gameId} 暫存幫戰，時間: ${new Date(date).toLocaleString()}`,
+            type: 'other',
+            timestamp: new Date()
+        });
+        res.json({ success: true, message: '幫戰已暫存' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: '暫存幫戰失敗' });
     }
 });
 
@@ -200,10 +226,10 @@ router.post('/battle/close', ensureAdmin, async (req, res) => {
     }
 });
 
-// 報名幫戰
+// 報名幫戰（支援逾期備選名單）
 router.post('/registration/register', ensureAuthenticated, async (req, res) => {
     try {
-        const battle = await Battle.findOne({ status: 'open' });
+        const battle = await Battle.findOne({ status: { $in: ['open', 'closed'] } });
         if (!battle) {
             return res.status(400).json({ success: false, message: '無開放的幫戰' });
         }
@@ -215,20 +241,24 @@ router.post('/registration/register', ensureAuthenticated, async (req, res) => {
         if (existingRegistration) {
             return res.status(400).json({ success: false, message: '已報名' });
         }
-        const isAlternate = new Date() > new Date(battle.deadline);
+        const isWaitlist = new Date() > new Date(battle.deadline);
         const registration = new Registration({
             userId: req.user.gameId,
             battleId: battle._id,
-            isAlternate
+            isWaitlist
         });
         await registration.save();
         await ChangeLog.create({
             userId: req.user.gameId,
-            message: `用戶 ${req.user.gameId} ${isAlternate ? '加入備選名單' : '報名幫戰'}，時間: ${new Date(battle.date).toLocaleString()}`,
+            message: `用戶 ${req.user.gameId} ${isWaitlist ? '加入備選名單' : '報名幫戰'}，時間: ${new Date(battle.date).toLocaleString()}`,
             type: 'register',
             timestamp: new Date()
         });
-        res.json({ success: true, message: isAlternate ? '已超過報名時間，已加入備選名單' : '報名成功', isAlternate });
+        res.json({
+            success: true,
+            message: isWaitlist ? '已超過報名時間，已加入備選名單' : '報名成功',
+            isWaitlist
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: '報名失敗' });
     }
@@ -237,7 +267,7 @@ router.post('/registration/register', ensureAuthenticated, async (req, res) => {
 // 取消報名
 router.post('/registration/cancel', ensureAuthenticated, async (req, res) => {
     try {
-        const battle = await Battle.findOne({ status: 'open' });
+        const battle = await Battle.findOne({ status: { $in: ['open', 'closed'] } });
         if (!battle) {
             return res.status(400).json({ success: false, message: '無開放的幫戰' });
         }
@@ -265,7 +295,7 @@ router.post('/registration/proxy', ensureAuthenticated, async (req, res) => {
         return res.status(400).json({ success: false, message: '請填寫所有欄位' });
     }
     try {
-        const battle = await Battle.findOne({ status: 'open' });
+        const battle = await Battle.findOne({ status: { $in: ['open', 'closed'] } });
         if (!battle) {
             return res.status(400).json({ success: false, message: '無開放的幫戰' });
         }
@@ -280,39 +310,25 @@ router.post('/registration/proxy', ensureAuthenticated, async (req, res) => {
         if (existingRegistration) {
             return res.status(400).json({ success: false, message: '目標用戶已報名' });
         }
-        const isAlternate = new Date() > new Date(battle.deadline);
+        const isWaitlist = new Date() > new Date(battle.deadline);
         const registration = new Registration({
             userId: targetGameId,
             battleId: battle._id,
             isProxy: true,
             proxyReason: reason,
             proxyBy: req.user.gameId,
-            isAlternate
+            isWaitlist
         });
         await registration.save();
         await ChangeLog.create({
             userId: req.user.gameId,
-            message: `用戶 ${req.user.gameId} 為 ${targetGameId} 代報名幫戰，原因: ${reason}${isAlternate ? '（備選名單）' : ''}`,
+            message: `用戶 ${req.user.gameId} 為 ${targetGameId} 代報名幫戰，原因: ${reason}${isWaitlist ? '（備選名單）' : ''}`,
             type: 'register',
             timestamp: new Date()
         });
-        res.json({ success: true, message: '代報名成功' });
+        res.json({ success: true, message: isWaitlist ? '已超過報名時間，已加入備選名單' : '代報名成功' });
     } catch (err) {
         res.status(500).json({ success: false, message: '代報名失敗' });
-    }
-});
-
-// 查詢備選名單
-router.get('/registration/alternate', ensureAuthenticated, async (req, res) => {
-    try {
-        const battle = await Battle.findOne({ status: 'open' });
-        if (!battle) {
-            return res.status(400).json({ success: false, message: '無開放的幫戰' });
-        }
-        const alternates = await Registration.find({ battleId: battle._id, isAlternate: true }).select('userId');
-        res.json({ success: true, alternates: alternates.map(r => r.userId) });
-    } catch (err) {
-        res.status(500).json({ success: false, message: '無法載入備選名單' });
     }
 });
 
@@ -404,7 +420,7 @@ router.post('/members/toggle-leave', ensureAdmin, async (req, res) => {
     }
 });
 
-// 切換管理員狀態
+// 切換管理員權限（新功能）
 router.post('/members/toggle-admin', ensureAdmin, async (req, res) => {
     const { gameId } = req.body;
     if (!gameId) {
@@ -415,17 +431,20 @@ router.post('/members/toggle-admin', ensureAdmin, async (req, res) => {
         if (!user) {
             return res.status(400).json({ success: false, message: '用戶不存在' });
         }
+        if (user.discordId === process.env.MAIN_ADMIN_DISCORD_ID) {
+            return res.status(400).json({ success: false, message: '無法修改主帳號權限' });
+        }
         user.isAdmin = !user.isAdmin;
         await user.save();
         await ChangeLog.create({
             userId: req.user.gameId,
-            message: `管理員 ${req.user.gameId} 將 ${gameId} 的管理員狀態設為 ${user.isAdmin ? '管理員' : '普通用戶'}`,
+            message: `管理員 ${req.user.gameId} 將 ${gameId} 的管理員權限設為 ${user.isAdmin ? '啟用' : '停用'}`,
             type: 'other',
             timestamp: new Date()
         });
-        res.json({ success: true, message: '管理員狀態更新成功' });
+        res.json({ success: true, message: '管理員權限更新成功' });
     } catch (err) {
-        res.status(500).json({ success: false, message: '更新管理員狀態失敗' });
+        res.status(500).json({ success: false, message: '更新管理員權限失敗' });
     }
 });
 
@@ -463,7 +482,7 @@ router.get('/formation/current', ensureAdmin, async (req, res) => {
         if (!battle) {
             return res.status(400).json({ success: false, message: '無可編輯的幫戰' });
         }
-        const registrations = await Registration.find({ battleId: battle._id });
+        const registrations = await Registration.find({ battleId: battle._id, isWaitlist: false });
         const registeredUsers = await User.find({ gameId: { $in: registrations.map(r => r.userId) } }).select('gameId job');
         res.json({
             success: true,
@@ -573,14 +592,16 @@ router.post('/formation/confirm', ensureAdmin, async (req, res) => {
 router.get('/stats', ensureAdmin, async (req, res) => {
     try {
         const totalMembers = await User.countDocuments();
-        const battle = await Battle.findOne({ status: 'open' });
-        const registered = battle ? await Registration.countDocuments({ battleId: battle._id }) : 0;
+        const battle = await Battle.findOne({ status: { $in: ['open', 'closed'] } });
+        const registered = battle ? await Registration.countDocuments({ battleId: battle._id, isWaitlist: false }) : 0;
+        const waitlist = battle ? await Registration.countDocuments({ battleId: battle._id, isWaitlist: true }) : 0;
         const onLeave = await User.countDocuments({ onLeave: true });
         res.json({
             success: true,
             stats: {
                 totalMembers,
                 registered,
+                waitlist,
                 onLeave
             }
         });
