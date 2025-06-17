@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 幫戰管理</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,30 +13,43 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>幫戰管理</h2>
-                <div class="form-group">
-                    <label>幫戰日期</label>
-                    <input type="datetime-local" id="battleDate">
+                <div class="admin-section">
+                    <h3>新增幫戰</h3>
+                    <div class="form-group">
+                        <label>幫戰日期</label>
+                        <input type="datetime-local" id="battleDate">
+                    </div>
+                    <div class="form-group">
+                        <label>報名截止時間</label>
+                        <input type="datetime-local" id="battleDeadline">
+                    </div>
+                    <button class="btn btn-success" onclick="createBattle()">新增</button>
                 </div>
-                <div class="form-group">
-                    <label>報名截止時間</label>
-                    <input type="datetime-local" id="battleDeadline">
+                <div class="admin-section">
+                    <h3>當前幫戰</h3>
+                    <div id="currentBattle"></div>
                 </div>
-                <button class="btn btn-success" onclick="createBattle()">新增</button>
-                <div id="currentBattle"></div>
             </div>
         </div>
     </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         async function createBattle() {
             const date = document.getElementById('battleDate').value;
             const deadline = document.getElementById('battleDeadline').value;
-            if (!date || !deadline) return alert('請填寫所有欄位');
+            if (!date || !deadline) {
+                showNotification('請填寫所有欄位', 'error');
+                return;
+            }
             try {
                 const res = await fetch('/api/battle/open', {
                     method: 'POST',
@@ -46,27 +59,30 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('幫戰已新增');
+                    showNotification('幫戰已新增', 'success');
                     loadCurrentBattle();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('新增失敗');
+                showNotification('新增失敗', 'error');
             }
         }
         async function closeBattle() {
             try {
-                const res = await fetch('/api/battle/close', { method: 'POST', credentials: 'include' });
+                const res = await fetch('/api/battle/close', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
                 const data = await res.json();
                 if (data.success) {
-                    alert('幫戰已關閉');
+                    showNotification('幫戰已關閉', 'success');
                     loadCurrentBattle();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('關閉失敗');
+                showNotification('關閉失敗', 'error');
             }
         }
         async function loadCurrentBattle() {
@@ -84,7 +100,7 @@
                     <button class="btn btn-danger" onclick="closeBattle()">關閉報名</button>
                 `;
             } catch (err) {
-                alert('無法載入幫戰資訊');
+                showNotification('無法載入幫戰資訊', 'error');
             }
         }
         document.addEventListener('DOMContentLoaded', loadCurrentBattle);
