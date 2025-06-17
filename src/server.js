@@ -5,6 +5,7 @@ const DiscordStrategy = require('passport-discord').Strategy;
 const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config();
+const MongoStore = require('connect-mongo');
 
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
@@ -17,7 +18,15 @@ app.use(express.json());
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        collectionName: 'sessions'
+    }),
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 小時
+    }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
