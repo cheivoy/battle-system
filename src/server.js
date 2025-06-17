@@ -3,9 +3,20 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const path = require('path');
+const mongoose = require('mongoose');
+require('dotenv').config();
+require('./models/user');
+require('./models/battle');
+require('./models/registration');
+require('./models/leaveRequest');
+require('./models/attendanceRecord');
+require('./config/passport');
+
 const app = express();
 
-// Session 配置
+// 中間件
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'default_secret',
     resave: false,
@@ -13,12 +24,10 @@ app.use(session({
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
         collectionName: 'sessions',
-        ttl: 24 * 60 * 60 // 1 天
+        ttl: 24 * 60 * 60
     }),
     cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 }
 }));
-
-// 初始化 Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -32,7 +41,7 @@ const ensureAuthenticated = (req, res, next) => {
         return next();
     }
     console.log('Unauthenticated access attempt');
-    res.redirect('/?error=unauthenticated');
+    res.redirect('/login.html?error=unauthenticated');
 };
 
 // 路由
@@ -44,7 +53,7 @@ app.get(['/', '/index.html'], (req, res) => {
     if (req.isAuthenticated()) {
         res.sendFile(path.join(__dirname, '../public/index.html'));
     } else {
-        res.sendFile(path.join(__dirname, '../public/login.html')); // 登入頁面
+        res.sendFile(path.join(__dirname, '../public/login.html'));
     }
 });
 
@@ -56,6 +65,11 @@ app.get('/home.html', ensureAuthenticated, (req, res) => {
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/404.html'));
 });
+
+// MongoDB 連線
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
