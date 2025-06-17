@@ -38,6 +38,7 @@
                         <input type="time" id="deadlineTime">
                     </div>
                     <button class="btn" onclick="openBattle()" data-tooltip="開啟幫戰報名">開啟報名</button>
+                    <button class="btn btn-success" onclick="draftBattle()" data-tooltip="暫存幫戰">暫存</button>
                 </div>
                 <div class="admin-section">
                     <h3>當前幫戰</h3>
@@ -91,10 +92,49 @@
                     body: JSON.stringify({ date: battleDateTime, deadline: deadlineDateTime })
                 });
                 const data = await res.json();
-                showNotification(data.message, data.success ? 'success' : 'error');
-                if (data.success) loadCurrentBattle();
+                if (data.needsConfirmation) {
+                    showModal(`
+                        <h3>提醒</h3>
+                        <p>${data.message}</p>
+                        <button class="btn" onclick="draftBattle()">暫存幫戰</button>
+                        <button class="btn btn-danger" onclick="closeModal()">取消</button>
+                    `);
+                } else {
+                    showNotification(data.message, data.success ? 'success' : 'error');
+                    if (data.success) loadCurrentBattle();
+                }
             } catch (err) {
                 showNotification('開啟幫戰失敗', 'error');
+            }
+        }
+
+        async function draftBattle() {
+            const battleDate = document.getElementById('battleDate').value;
+            const battleTime = document.getElementById('battleTime').value;
+            const deadlineDate = document.getElementById('deadlineDate').value;
+            const deadlineTime = document.getElementById('deadlineTime').value;
+            if (!battleDate || !battleTime || !deadlineDate || !deadlineTime) {
+                showNotification('請填寫所有欄位', 'error');
+                return;
+            }
+            const battleDateTime = new Date(`${battleDate}T${battleTime}`);
+            const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+            if (deadlineDateTime >= battleDateTime) {
+                showNotification('報名截止時間必須早於幫戰時間', 'error');
+                return;
+            }
+            try {
+                const res = await fetch('/api/battle/draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ date: battleDateTime, deadline: deadlineDateTime })
+                });
+                const data = await res.json();
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) closeModal();
+            } catch (err) {
+                showNotification('暫存幫戰失敗', 'error');
             }
         }
 
