@@ -98,5 +98,7 @@ pages.forEach(page => {
 app.use(express.static(path.join(__dirname, '../public')));
 
 // 啟動伺服器
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const port = process.env.PORT || 10000;
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port}`);
+});
