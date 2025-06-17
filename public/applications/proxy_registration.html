@@ -10,36 +10,33 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>代報名</h2>
                 <div class="form-group">
-                    <label>目標用戶遊戲 ID</label>
-                    <input type="text" id="targetId" placeholder="請輸入目標用戶的遊戲 ID">
+                    <label>目標遊戲 ID：</label>
+                    <input type="text" id="targetGameId" placeholder="請輸入目標用戶的遊戲 ID">
                 </div>
                 <div class="form-group">
-                    <label>原因</label>
-                    <textarea id="reason" placeholder="請輸入代報名原因"></textarea>
+                    <label>原因：</label>
+                    <textarea id="reason" placeholder="請說明代報名原因"></textarea>
                 </div>
-                <button class="btn btn-success" onclick="submitProxy()">提交</button>
+                <button class="btn" onclick="submitProxyRegistration()" data-tooltip="提交代報名">提交</button>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
-        async function submitProxy() {
-            const targetId = document.getElementById('targetId').value.trim();
+        async function submitProxyRegistration() {
+            const targetGameId = document.getElementById('targetGameId').value.trim();
             const reason = document.getElementById('reason').value.trim();
-            if (!targetId || !reason) {
+            if (!targetGameId || !reason) {
                 showNotification('請填寫所有欄位', 'error');
                 return;
             }
@@ -48,17 +45,12 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ targetId, reason })
+                    body: JSON.stringify({ targetGameId, reason })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('代報名成功', 'success');
-                    window.location.reload();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
             } catch (err) {
-                showNotification('提交失敗', 'error');
+                showNotification('代報名失敗', 'error');
             }
         }
     </script>
