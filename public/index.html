@@ -1,49 +1,10 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 登入</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -52,74 +13,44 @@
         <div class="header">
             <h1>🛡️ 幫戰報名管理系統</h1>
         </div>
-        <div id="loginPanel" class="tab-content active">
-            <div class="login-container">
-                <h2>歡迎使用幫戰報名系統</h2>
-                <p>請使用 Discord 帳號登入以確保身份驗證</p>
-                <a href="/auth/discord" class="discord-login">🎮 使用 Discord 登入</a>
-                <div class="spinner" id="loginSpinner"></div>
-                <div id="newUserForm" style="display: none; margin-top: 30px;">
-                    <h3>首次設定</h3>
-                    <div class="form-group">
-                        <label>遊戲 ID：</label>
-                        <input type="text" id="gameIdInput" placeholder="請輸入您的遊戲 ID">
-                    </div>
-                    <div class="form-group">
-                        <label>職業：</label>
-                        <select id="jobSelect">
-                            <option value="">請選擇職業</option>
-                            <option value="素問">素問</option>
-                            <option value="血河">血河</option>
-                            <option value="九靈">九靈</option>
-                            <option value="龍吟">龍吟</option>
-                            <option value="碎夢">碎夢</option>
-                            <option value="神相">神相</option>
-                            <option value="鐵衣">鐵衣</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>是否為管理員：</label>
-                        <input type="checkbox" id="isAdminCheckbox">
-                    </div>
-                    <button onclick="completeRegistration()" class="btn">完成註冊</button>
-                </div>
+        <div class="login-container">
+            <h2>歡迎使用</h2>
+            <p>請使用 Discord 帳號登入</p>
+            <a href="/auth/discord" class="discord-login">🎮 使用 Discord 登入</a>
+            <div id="newUserForm" style="display: none; margin-top: 20px;">
+                <h3>首次設定</h3>
+                <label>遊戲 ID：</label>
+                <input type="text" id="gameIdInput" placeholder="輸入遊戲 ID">
+                <label>職業：</label>
+                <select id="jobSelect">
+                    <option value="">選擇職業</option>
+                    <option value="素問">素問</option>
+                    <option value="血河">血河</option>
+                    <option value="九靈">九靈</option>
+                    <option value="龍吟">龍吟</option>
+                    <option value="碎夢">碎夢</option>
+                    <option value="神相">神相</option>
+                    <option value="鐵衣">鐵衣</option>
+                </select>
+                <label>管理員：</label>
+                <input type="checkbox" id="isAdminCheckbox">
+                <button onclick="completeRegistration()" class="btn">完成</button>
             </div>
         </div>
     </div>
     <script src="/scripts.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('setup') === 'true') {
-                document.getElementById('loginSpinner').style.display = 'block';
-                try {
-                    const res = await fetch('/api/user/setup', { credentials: 'include' });
-                    const data = await res.json();
-                    if (data.success) {
-                        document.getElementById('newUserForm').style.display = 'block';
-                    } else {
-                        showNotification(data.message, 'error');
-                        window.location.href = '/index.html';
-                    }
-                } catch (err) {
-                    showNotification('無法檢查用戶狀態', 'error');
-                } finally {
-                    document.getElementById('loginSpinner').style.display = 'none';
-                }
+            if (new URLSearchParams(window.location.search).get('setup') === 'true') {
+                document.getElementById('newUserForm').style.display = 'block';
             }
         });
         async function completeRegistration() {
             const gameId = document.getElementById('gameIdInput').value.trim();
             const job = document.getElementById('jobSelect').value;
             const isAdmin = document.getElementById('isAdminCheckbox').checked;
-            if (!gameId || !job) {
-                showNotification('請填寫所有必要欄位', 'error');
-                return;
-            }
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) {
-                showNotification('遊戲 ID 必須為 3-20 字元的字母或數字', 'error');
-                return;
-            }
+            if (!gameId || !job) return alert('請填寫遊戲 ID 和職業');
+            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) return alert('遊戲 ID 需為 3-20 字元的字母或數字');
             try {
                 const res = await fetch('/api/user/register', {
                     method: 'POST',
@@ -129,13 +60,13 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showNotification('註冊成功！', 'success');
+                    alert('註冊成功！');
                     window.location.href = '/home.html';
                 } else {
-                    showNotification(data.message, 'error');
+                    alert(data.message);
                 }
             } catch (err) {
-                showNotification('註冊失敗，請稍後重試', 'error');
+                alert('註冊失敗，請重試');
             }
         }
     </script>
