@@ -3,72 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幫戰報名管理系統 - 登入</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <title>幫戰報名管理系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ 幫戰報名管理系統</h1>
-        </div>
-        <div class="login-container">
-            <h2>歡迎使用</h2>
-            <p>請使用 Discord 帳號登入</p>
-            <a href="/auth/discord" class="discord-login">🎮 使用 Discord 登入</a>
-            <div id="newUserForm" style="display: none; margin-top: 20px;">
-                <h3>首次設定</h3>
-                <label>遊戲 ID：</label>
-                <input type="text" id="gameIdInput" placeholder="輸入遊戲 ID">
-                <label>職業：</label>
-                <select id="jobSelect">
-                    <option value="">選擇職業</option>
-                    <option value="素問">素問</option>
-                    <option value="血河">血河</option>
-                    <option value="九靈">九靈</option>
-                    <option value="龍吟">龍吟</option>
-                    <option value="碎夢">碎夢</option>
-                    <option value="神相">神相</option>
-                    <option value="鐵衣">鐵衣</option>
-                </select>
-                <label>管理員：</label>
-                <input type="checkbox" id="isAdminCheckbox">
-                <button onclick="completeRegistration()" class="btn">完成</button>
+    <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+    <nav id="sidebar" class="sidebar"></nav>
+    <div id="mainContent" class="main-content">
+        <div class="container">
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
             </div>
+            <div id="userInfo" class="user-info"></div>
+            <div id="content" class="tab-content"></div>
         </div>
     </div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (new URLSearchParams(window.location.search).get('setup') === 'true') {
-                document.getElementById('newUserForm').style.display = 'block';
-            }
-        });
-        async function completeRegistration() {
-            const gameId = document.getElementById('gameIdInput').value.trim();
-            const job = document.getElementById('jobSelect').value;
-            const isAdmin = document.getElementById('isAdminCheckbox').checked;
-            if (!gameId || !job) return alert('請填寫遊戲 ID 和職業');
-            if (!/^[a-zA-Z0-9]{3,20}$/.test(gameId)) return alert('遊戲 ID 需為 3-20 字元的字母或數字');
-            try {
-                const res = await fetch('/api/user/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ gameId, job, isAdmin })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert('註冊成功！');
-                    window.location.href = '/home.html';
-                } else {
-                    alert(data.message);
-                }
-            } catch (err) {
-                alert('註冊失敗，請重試');
-            }
-        }
-    </script>
 </body>
 </html>
