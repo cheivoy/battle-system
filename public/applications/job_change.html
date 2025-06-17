@@ -10,40 +10,31 @@
 </head>
 <body>
     <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
-    <nav id="sidebar" class="sidebar"></nav>
-    <div id="mainContent" class="main-content">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main id="mainContent" class="main-content">
         <div class="container">
             <div class="header">
                 <h1>🛡️ 幫戰報名管理系統</h1>
+                <div id="userInfo" class="user-info"></div>
             </div>
-            <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>更換職業</h2>
                 <div class="form-group">
-                    <label>新職業</label>
-                    <select id="jobSelect">
+                    <label>新職業：</label>
+                    <select id="newJob">
                         <option value="">請選擇職業</option>
-                        <option value="素問">素問</option>
-                        <option value="血河">血河</option>
-                        <option value="九靈">九靈</option>
-                        <option value="龍吟">龍吟</option>
-                        <option value="碎夢">碎夢</option>
-                        <option value="神相">神相</option>
-                        <option value="鐵衣">鐵衣</option>
+                        ${jobs.map(job => `<option value="${job}">${job}</option>`).join('')}
                     </select>
                 </div>
-                <button class="btn btn-success" onclick="changeJob()">提交</button>
+                <button class="btn" onclick="changeJob()" data-tooltip="提交新職業">提交</button>
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div class="modal-content" id="modalContent"></div>
-    </div>
+    </main>
     <script src="/scripts.js"></script>
     <script>
         async function changeJob() {
-            const job = document.getElementById('jobSelect').value;
-            if (!job) {
+            const newJob = document.getElementById('newJob').value;
+            if (!newJob) {
                 showNotification('請選擇職業', 'error');
                 return;
             }
@@ -52,17 +43,13 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ job })
+                    body: JSON.stringify({ job: newJob })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    showNotification('職業更換成功', 'success');
-                    window.location.reload();
-                } else {
-                    showNotification(data.message, 'error');
-                }
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) initSidebar();
             } catch (err) {
-                showNotification('更換失敗', 'error');
+                showNotification('更換職業失敗', 'error');
             }
         }
     </script>
