@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幫戰報名管理系統 - 出戰表</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,17 +13,22 @@
     <nav id="sidebar" class="sidebar"></nav>
     <div id="mainContent" class="main-content">
         <div class="container">
-            <div class="header"><h1>🛡️ 幫戰報名管理系統</h1></div>
+            <div class="header">
+                <h1>🛡️ 幫戰報名管理系統</h1>
+            </div>
             <div class="user-info" id="userInfo"></div>
             <div class="tab-content">
                 <h2>出戰表管理</h2>
                 <div id="formationTable"></div>
                 <button class="btn btn-success" onclick="saveFormation()">保存</button>
                 <button class="btn btn-success" onclick="publishFormation()">發佈</button>
+                <button class="btn btn-success" onclick="confirmFormation()">確認</button>
             </div>
         </div>
     </div>
-    <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
     <script src="/scripts.js"></script>
     <script>
         let players = [];
@@ -34,19 +39,23 @@
                 const playersRes = await fetch('/api/registration/list', { credentials: 'include' });
                 const playersData = await playersRes.json();
                 if (!battleData.success || !battleData.battle) {
-                    document.getElementById('formationTable').innerHTML = '<p>無開放的幫戰</p>';
+                    showNotification('無開放的幫戰', 'error');
                     return;
                 }
                 players = playersData.success ? playersData.players : [];
                 const formation = battleData.battle.formation.length ? battleData.battle.formation : [
-                    { name: '第一團', teams: teamNames.map(name => ({ name, members: jobs.map(job => ({ job, player: '' })) })) }
+                    { name: '第一團', teams: teamNames.map(name => ({ name, members: jobs.map(job => ({ job, player: '' })) })) },
+                    { name: '第二團', teams: teamNames.map(name => ({ name, members: jobs.map(job => ({ job, player: '' })) })) }
                 ];
                 const table = document.getElementById('formationTable');
                 table.innerHTML = '<h3>陣型編輯</h3>';
                 formation.forEach(group => {
                     const groupTable = document.createElement('table');
                     groupTable.className = 'team-table';
-                    groupTable.innerHTML = `<tr><th colspan="4">${group.name}</th></tr><tr><th>小隊</th><th>職業</th><th>玩家</th><th>操作</th></tr>`;
+                    groupTable.innerHTML = `
+                        <tr><th colspan="4">${group.name}</th></tr>
+                        <tr><th>小隊</th><th>職業</th><th>玩家</th><th>操作</th></tr>
+                    `;
                     group.teams.forEach(team => {
                         team.members.forEach(member => {
                             groupTable.innerHTML += `
@@ -67,11 +76,12 @@
                     table.appendChild(groupTable);
                 });
             } catch (err) {
-                alert('無法載入陣型');
+                showNotification('無法載入陣型', 'error');
             }
         }
         function clearPlayer(btn) {
-            btn.closest('tr').querySelector('select').value = '';
+            const select = btn.closest('tr').querySelector('select');
+            select.value = '';
         }
         async function saveFormation() {
             const formation = [];
@@ -96,26 +106,46 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('陣型已保存');
+                    showNotification('陣型已保存', 'success');
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('保存失敗');
+                showNotification('保存失敗', 'error');
             }
         }
         async function publishFormation() {
             try {
-                const res = await fetch('/api/formation/publish', { method: 'POST', credentials: 'include' });
+                const res = await fetch('/api/formation/publish', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
                 const data = await res.json();
                 if (data.success) {
-                    alert('陣型已發佈');
+                    showNotification('陣型已發佈', 'success');
                     loadFormation();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             } catch (err) {
-                alert('發佈失敗');
+                showNotification('發佈失敗', 'error');
+            }
+        }
+        async function confirmFormation() {
+            try {
+                const res = await fetch('/api/formation/confirm', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('陣型已確認', 'success');
+                    loadFormation();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (err) {
+                showNotification('確認失敗', 'error');
             }
         }
         document.addEventListener('DOMContentLoaded', loadFormation);
