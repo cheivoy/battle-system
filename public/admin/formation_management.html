@@ -19,16 +19,20 @@
             </div>
             <div class="tab-content">
                 <h2>出戰表管理</h2>
-                <div id="formationTable" class="battle-formation"></div>
-                <button class="btn" onclick="saveFormation()" data-tooltip="儲存出戰表">儲存</button>
-                <button class="btn btn-success" onclick="publishFormation()" data-tooltip="發佈出戰表">發佈</button>
-                <button class="btn btn-danger" onclick="confirmFormation()" data-tooltip="確認最終陣型">確認最終陣型</button>
+                <div id="formationTables" class="battle-formation"></div>
+                <div class="form-group">
+                    <button class="btn" onclick="saveFormation()" data-tooltip="儲存出戰表">儲存</button>
+                    <button class="btn btn-success" onclick="publishFormation()" data-tooltip="發佈出戰表">發佈</button>
+                    <button class="btn btn-danger" onclick="confirmFinalFormation()" data-tooltip="確認最終陣型">確認最終陣型</button>
+                </div>
             </div>
         </div>
     </main>
     <script src="/scripts.js"></script>
     <script>
         let registeredUsers = [];
+        let assignments = { '團1': {}, '團2': {} };
+        const teams = ['進攻隊', '防守隊', '機動隊', '空拆隊', '拆塔隊'];
 
         async function loadFormation() {
             try {
@@ -36,31 +40,9 @@
                 const data = await res.json();
                 if (data.success) {
                     registeredUsers = data.registeredUsers;
-                    const formation = data.formation || { groups: ['團1', '團2'], teams: teamNames, assignments: {} };
-                    document.getElementById('formationTable').innerHTML = `
-                        <table class="team-table">
-                            <tr><th>團</th><th>小隊</th><th>職業</th><th>玩家</th></tr>
-                            ${formation.groups.map(group => `
-                                ${formation.teams.map(team => `
-                                    ${jobs.map(job => `
-                                        <tr>
-                                            <td>${group}</td>
-                                            <td>${team}</td>
-                                            <td>${job}</td>
-                                            <td>
-                                                <select onchange="updateAssignment('${group}', '${team}', '${job}', this.value)">
-                                                    <option value="">無</option>
-                                                    ${registeredUsers.filter(u => u.job === job).map(u => `
-                                                        <option value="${u.gameId}" ${formation.assignments[group]?.[team]?.[job] === u.gameId ? 'selected' : ''}>${u.gameId}</option>
-                                                    `).join('')}
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                `).join('')}
-                            `).join('')}
-                        </table>
-                    `;
+                    const formation = data.formation || { groups: ['團1', '團2'], teams, assignments: { '團1': {}, '團2': {} } };
+                    assignments = formation.assignments;
+                    renderFormationTables(formation);
                 } else {
                     showNotification(data.message, 'error');
                 }
@@ -69,12 +51,68 @@
             }
         }
 
-        let assignments = {};
+        function renderFormationTables(formation, readonly = false, isConfirm = false) {
+            const container = document.getElementById('formationTables');
+            container.innerHTML = formation.groups.map(group => `
+                <h3>${group}</h3>
+                <table class="team-table ${readonly ? 'readonly' : ''}">
+                    <tr>
+                        ${teams.map(team => `<th colspan="2">${readonly ? team : `
+                            <select onchange="updateTeam('${group}', this.value, this)">
+                                <option value="${team}" selected>${team}</option>
+                                ${teams.filter(t => t !== team).map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        `}</th>`).join('')}
+                    </tr>
+                    ${[...Array(6)].map((_, i) => `
+                        <tr>
+                            ${teams.map(team => `
+                                <td>
+                                    <select ${readonly ? 'disabled' : ''} onchange="updateAssignment('${group}', '${team}', 'job${i}', this.value)">
+                                        <option value="">選擇職業</option>
+                                        ${jobs.map(job => `
+                                            <option value="${job}" ${formation.assignments[group]?.[team]?.[`job${i}`] === job ? 'selected' : ''}>${job}</option>
+                                        `).join('')}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select ${readonly ? 'disabled' : ''} onchange="updateAssignment('${group}', '${team}', 'player${i}', this.value)">
+                                        <option value="">選擇玩家</option>
+                                        ${registeredUsers.filter(u => u.job === formation.assignments[group]?.[team]?.[`job${i}`]).map(u => `
+                                            <option value="${u.gameId}" ${formation.assignments[group]?.[team]?.[`player${i}`] === u.gameId ? 'selected' : ''}>${u.gameId}</option>
+                                        `).join('')}
+                                    </select>
+                                </td>
+                            `).join('')}
+                        </tr>
+                    `).join('')}
+                </table>
+            `).join('');
+            if (isConfirm) {
+                container.dataset.mode = 'confirm';
+            }
+        }
 
-        function updateAssignment(group, team, job, gameId) {
-            if (!assignments[group]) assignments[group] = {};
+        function updateTeam(group, newTeam, select) {
+            const oldTeam = select.parentElement.textContent.trim();
+            if (assignments[group][newTeam]) {
+                showNotification('此小隊名稱已存在', 'error');
+                select.value = oldTeam;
+                return;
+            }
+            assignments[group][newTeam] = assignments[group][oldTeam] || {};
+            delete assignments[group][oldTeam];
+            renderFormationTables({ groups: ['團1', '團2'], teams, assignments });
+        }
+
+        function updateAssignment(group, team, key, value) {
             if (!assignments[group][team]) assignments[group][team] = {};
-            assignments[group][team][job] = gameId || undefined;
+            assignments[group][team][key] = value || undefined;
+            if (key.startsWith('job')) {
+                const playerKey = key.replace('job', 'player');
+                assignments[group][team][playerKey] = undefined; // 重置對應玩家
+                renderFormationTables({ groups: ['團1', '團2'], teams, assignments });
+            }
         }
 
         async function saveFormation() {
@@ -105,14 +143,37 @@
             }
         }
 
-        async function confirmFormation() {
+        async function confirmFinalFormation() {
+            try {
+                const res = await fetch('/api/formation/current', { credentials: 'include' });
+                const data = await res.json();
+                if (data.success) {
+                    renderFormationTables(data.formation, false, true);
+                    showModal(`
+                        <h3>確認最終陣型</h3>
+                        <p>請審核並確認最終出戰表</p>
+                        <button class="btn" onclick="submitFinalFormation()">確認</button>
+                        <button class="btn btn-danger" onclick="closeModal()">取消</button>
+                    `);
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (err) {
+                showNotification('無法載入出戰表', 'error');
+            }
+        }
+
+        async function submitFinalFormation() {
             try {
                 const res = await fetch('/api/formation/confirm', {
                     method: 'POST',
-                    credentials: 'include'
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ assignments })
                 });
                 const data = await res.json();
                 showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) closeModal();
             } catch (err) {
                 showNotification('確認陣型失敗', 'error');
             }
