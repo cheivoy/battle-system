@@ -30,14 +30,28 @@ async function checkUserStatus() {
 }
 
 function showNotification(message, type) {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    const notification = document.getElementById('notification');
+    if (notification) {
+        notification.textContent = message;
+        notification.className = `fixed top-4 right-4 p-4 rounded shadow-lg ${type === 'success' ? 'success' : 'error'}`;
+        notification.classList.remove('hidden');
+        setTimeout(() => notification.classList.add('hidden'), 5000);
+    } else {
+        console.warn('Notification element not found');
+        // 如果找不到通知元素，就用 alert 作為備用
+        alert(message);
+    }
+}
+
+function showLoading(show) {
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.classList.toggle('hidden', !show);
+    } else {
+        console.warn('Loading element not found');
+        // 如果沒有 loading 元素，在控制台顯示載入狀態
+        console.log(show ? 'Loading...' : 'Loading complete');
+    }
 }
 
 function showModal(content) {
