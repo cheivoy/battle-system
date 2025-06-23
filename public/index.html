@@ -1,83 +1,112 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幫戰報名管理系統 - 設定</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
-        rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>幫戰報名管理系統 - 用戶設定</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
-
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ 幫戰報名管理系統</h1>
-        </div>
-        <div class="tab-content">
-            <h2>用戶設定</h2>
-            <div class="form-group">
-                <label>遊戲 ID：</label>
-                <input type="text" id="gameId" placeholder="請輸入遊戲 ID">
-            </div>
-            <div class="form-group">
-                <label>職業：</label>
-                <select id="job">
-                    <option value="">請選擇職業</option>
-                </select>
-            </div>
-            <button class="btn" onclick="registerUser()">提交</button>
-            <div class="login-section">
-                <p>尚未登入？請使用 Discord 登入</p>
-                <a href="/auth/discord" class="btn"><i class="fab fa-discord"></i> Discord 登入</a>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">🛡️ 幫戰報名管理系統 - 用戶設定</h1>
+        
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="hidden bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+            <div class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
+                載入中...
             </div>
         </div>
-    </div>
-    <div id="modal" class="modal">
-        <div id="modalContent" class="modal-content">
-            <button class="close-modal" onclick="closeModal()">×</button>
-        </div>
+        
+        <!-- Notification Area -->
+        <div id="notification" class="hidden px-4 py-3 rounded mb-4"></div>
+        
+        <div id="setupForm" class="bg-white p-6 rounded-lg shadow-lg"></div>
     </div>
     <script src="/scripts.js"></script>
     <script>
-        const jobs = ['鐵衣', '素問', '九靈', '碎夢', '龍吟', '血河', '神相'];
+        const jobs = ['鐵衣', '素問', '九靈', '神相', '血河', '碎夢', '龍吟'];
 
-        async function loadSetup() {
-            try {
-                const res = await fetch('/api/user/setup', { credentials: 'include' });
-                const data = await res.json();
-                if (!data.success) {
-                    window.location.href = '/home.html';
-                    return;
+        // Safe loading function that checks if element exists
+        function showLoading(show) {
+            const loadingElement = document.getElementById('loadingIndicator');
+            if (loadingElement) {
+                if (show) {
+                    loadingElement.classList.remove('hidden');
+                } else {
+                    loadingElement.classList.add('hidden');
                 }
-                const jobSelect = document.getElementById('job');
-                jobs.forEach(job => {
-                    const option = document.createElement('option');
-                    option.value = job;
-                    option.textContent = job;
-                    jobSelect.appendChild(option);
-                });
-            } catch (err) {
-                showNotification('無法載入設定頁面', 'error');
             }
         }
 
-        async function registerUser() {
+        // Safe notification function
+        function showNotification(message, type = 'info') {
+            const notificationElement = document.getElementById('notification');
+            if (notificationElement) {
+                notificationElement.textContent = message;
+                notificationElement.className = `px-4 py-3 rounded mb-4 notification-${type}`;
+                notificationElement.classList.remove('hidden');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    notificationElement.classList.add('hidden');
+                }, 5000);
+            } else {
+                // Fallback to alert if notification element doesn't exist
+                alert(message);
+            }
+        }
+
+        async function loadSetupForm() {
+            showLoading(true);
+            try {
+                const res = await fetch('/api/user/status', { credentials: 'include' });
+                const data = await res.json();
+                const formDiv = document.getElementById('setupForm');
+                if (!data.success) {
+                    window.location.href = '/login.html?error=unauthenticated';
+                    return;
+                }
+                if (data.user.gameId && data.user.job) {
+                    window.location.href = '/home.html';
+                    return;
+                }
+                formDiv.innerHTML = `
+                    <div class="mb-4">
+                        <label class="block text-gray-700">遊戲 ID（1-7個中文字符）：</label>
+                        <input type="text" id="gameId" class="border rounded w-full p-2" placeholder="請輸入遊戲 ID" pattern="[\\u4e00-\\u9fa5]{1,7}">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700">職業：</label>
+                        <select id="job" class="border rounded w-full p-2">
+                            <option value="">請選擇職業</option>
+                            ${jobs.map(job => `<option value="${job}">${job}</option>`).join('')}
+                        </select>
+                    </div>
+                    <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600" onclick="submitSetup()">提交</button>
+                `;
+            } catch (err) {
+                showNotification('無法載入設定表單', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function submitSetup() {
             const gameId = document.getElementById('gameId').value.trim();
             const job = document.getElementById('job').value;
             if (!gameId || !job) {
                 showNotification('請填寫所有欄位', 'error');
                 return;
             }
-            if (!/^[\u4e00-\u9fa5\uff01-\uff5e]{1,7}$/.test(gameId)) {
-                showNotification('遊戲 ID 必須為 7 字以內的中文字或標點符號', 'error');
+            if (!/^[\u4e00-\u9fa5]{1,7}$/.test(gameId)) {
+                showNotification('遊戲 ID 需為 1-7 個中文字符', 'error');
                 return;
             }
+            showLoading(true);
             try {
-                const res = await fetch('/api/user/register', {
+                const res = await fetch('/api/user/setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -89,12 +118,13 @@
                     window.location.href = '/home.html';
                 }
             } catch (err) {
-                showNotification('註冊失敗', 'error');
+                showNotification('設定失敗', 'error');
+            } finally {
+                showLoading(false);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadSetup);
+        document.addEventListener('DOMContentLoaded', loadSetupForm);
     </script>
 </body>
-
 </html>
